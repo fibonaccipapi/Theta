@@ -1,0 +1,107 @@
+@import "tailwindcss";
+
+@theme {
+  --color-neon-green: #00FF9F;
+  --color-hot-pink: #FF2D9A;
+  --color-deep-black: #050505;
+  
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", sans-serif;
+  --font-serif: "Playfair Display", serif;
+}
+
+body {
+  background-color: var(--color-deep-black);
+  color: #f1f5f9;
+}
+
+.glass-panel {
+  background-color: rgba(5, 5, 5, 0.6);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.neon-border-green {
+  border: 1px solid rgba(0, 255, 159, 0.3);
+  box-shadow: 0 0 15px rgba(0, 255, 159, 0.1);
+}
+
+.neon-border-pink {
+  border: 1px solid rgba(255, 45, 154, 0.3);
+  box-shadow: 0 0 15px rgba(255, 45, 154, 0.1);
+}
+
+.neon-button-green {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1rem;
+  border: 1px solid rgba(0, 255, 159, 0.5);
+  background-color: rgba(0, 255, 159, 0.05);
+  padding: 1rem 2rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--color-neon-green);
+  transition: all 0.3s ease;
+}
+
+.neon-button-green:hover {
+  background-color: rgba(0, 255, 159, 0.1);
+  box-shadow: 0 0 20px rgba(0, 255, 159, 0.3);
+}
+
+.neon-button-pink {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 45, 154, 0.5);
+  background-color: rgba(255, 45, 154, 0.05);
+  padding: 1rem 2rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--color-hot-pink);
+  transition: all 0.3s ease;
+}
+
+.neon-button-pink:hover {
+  background-color: rgba(255, 45, 154, 0.1);
+  box-shadow: 0 0 20px rgba(255, 45, 154, 0.3);
+}
+
+.neon-text-green {
+  color: var(--color-neon-green);
+  filter: drop-shadow(0 0 8px rgba(0, 255, 159, 0.5));
+}
+
+.neon-text-pink {
+  color: var(--color-hot-pink);
+  filter: drop-shadow(0 0 8px rgba(255, 45, 154, 0.5));
+}
+
+.input-futuristic {
+  background-color: rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 0.75rem 1rem;
+  outline: none;
+  transition: all 0.3s ease;
+}
+
+.input-futuristic:focus {
+  border-color: var(--color-neon-green);
+  background-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 12px -4px rgba(0, 255, 159, 0.2);
+}
+
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.3; filter: blur(40px); }
+  50% { opacity: 0.6; filter: blur(60px); }
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 4s ease-in-out infinite;
+}
+
+.bg-grain {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  opacity: 0.05;
+}

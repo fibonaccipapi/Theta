@@ -1,0 +1,7 @@
+{
+  "name": "Theta Reprogramming",
+  "description": "A scientific neuro-plasticity app designed to help users enter Theta states and reprogram subconscious beliefs through personalized affirmations and binaural entrainment.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
