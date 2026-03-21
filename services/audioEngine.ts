@@ -921,7 +921,7 @@ export class ThetaAudioEngine {
     const duration = Math.max(...layers.map(l => l.buffer.duration));
     const sampleRate = layers[0]?.buffer.sampleRate || 24000;
     const offlineCtx = new OfflineAudioContext(2, duration * sampleRate, sampleRate);
-    
+
     for (const layer of layers) {
       const source = offlineCtx.createBufferSource();
       source.buffer = layer.buffer;
@@ -930,7 +930,92 @@ export class ThetaAudioEngine {
       source.connect(gain).connect(offlineCtx.destination);
       source.start(0);
     }
-    
+
     return await offlineCtx.startRendering();
+  }
+
+  async exportMix(
+    affirmations: Array<{ id: string; userRecording: string }>,
+    binauralHz: { left: number; right: number },
+    binauralVolume: number,
+    durationMinutes: number,
+    onProgress?: (current: number, total: number) => void
+  ): Promise<Blob> {
+    const durationSeconds = durationMinutes * 60;
+    const sampleRate = 44100;
+    const offlineCtx = new OfflineAudioContext(2, sampleRate * durationSeconds, sampleRate);
+
+    // Decode all affirmation recordings and get durations
+    const affBuffers: Array<{ id: string; buffer: AudioBuffer; duration: number }> = [];
+    for (const aff of affirmations) {
+      // IMPORTANT: userRecording is base64 string, decode it first
+      const affBytes = this.decodeBase64(aff.userRecording);
+      const buffer = await offlineCtx.decodeAudioData(affBytes.buffer);
+      affBuffers.push({
+        id: aff.id,
+        buffer: buffer,
+        duration: buffer.duration
+      });
+    }
+
+    // Create binaural beats (stereo)
+    const leftOsc = offlineCtx.createOscillator();
+    leftOsc.frequency.value = binauralHz.left;
+    leftOsc.type = 'sine';
+
+    const rightOsc = offlineCtx.createOscillator();
+    rightOsc.frequency.value = binauralHz.right;
+    rightOsc.type = 'sine';
+
+    const leftGain = offlineCtx.createGain();
+    leftGain.gain.value = binauralVolume * 0.5; // Reduce to not overpower voice
+
+    const rightGain = offlineCtx.createGain();
+    rightGain.gain.value = binauralVolume * 0.5;
+
+    const merger = offlineCtx.createChannelMerger(2);
+
+    leftOsc.connect(leftGain);
+    rightOsc.connect(rightGain);
+
+    leftGain.connect(merger, 0, 0); // left channel
+    rightGain.connect(merger, 0, 1); // right channel
+
+    leftOsc.start(0);
+    rightOsc.start(0);
+
+    // Calculate affirmation schedule
+    const schedule = this.calculateAffirmationSchedule(affBuffers, durationSeconds);
+
+    // Schedule all affirmations
+    for (const item of schedule) {
+      const affBuffer = affBuffers.find(a => a.id === item.affId);
+      if (affBuffer) {
+        const source = offlineCtx.createBufferSource();
+        source.buffer = affBuffer.buffer;
+
+        // Voice goes to both channels (center)
+        const voiceGain = offlineCtx.createGain();
+        voiceGain.gain.value = 1.0; // Full volume for voice
+        source.connect(voiceGain);
+        voiceGain.connect(merger, 0, 0);
+        voiceGain.connect(merger, 0, 1);
+
+        source.start(item.startTime);
+      }
+    }
+
+    merger.connect(offlineCtx.destination);
+
+    // Render (this may take several seconds)
+    if (onProgress) onProgress(0, durationSeconds);
+
+    const renderedBuffer = await offlineCtx.startRendering();
+
+    if (onProgress) onProgress(durationSeconds, durationSeconds);
+
+    // Convert to WAV
+    const wavBlob = this.bufferToWav(renderedBuffer);
+    return wavBlob;
   }
 }
