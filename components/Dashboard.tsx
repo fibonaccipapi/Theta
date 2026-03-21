@@ -353,7 +353,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           count={affirmations.length}
           primaryAction={{
             label: "Record New",
-            onClick: () => onRecordAffirmation(affirmations[0] || { id: 'new', text: '', layer: 'identity' as any, intensity: 'calibrated' as any })
+            onClick: () => onRecordAffirmation({ id: `new-${Date.now()}`, text: '', layer: 'identity' as any, intensity: 'calibrated' as any })
           }}
         >
           <div className="space-y-4">
