@@ -646,6 +646,32 @@ export class ThetaAudioEngine {
     }, 100);
   }
 
+  private calculateAffirmationSchedule(
+    affirmations: Array<{ id: string; duration: number }>,
+    totalDurationSeconds: number
+  ): Array<{ affId: string; startTime: number }> {
+    const schedule: Array<{ affId: string; startTime: number }> = [];
+    let currentTime = 0;
+    let affIndex = 0;
+
+    while (currentTime < totalDurationSeconds) {
+      const aff = affirmations[affIndex % affirmations.length];
+
+      // Intelligent spacing: 150% of affirmation duration, capped at 3 minutes
+      const gap = Math.min(aff.duration * 1.5, 180);
+
+      schedule.push({
+        affId: aff.id,
+        startTime: currentTime
+      });
+
+      currentTime += aff.duration + gap;
+      affIndex++;
+    }
+
+    return schedule;
+  }
+
   // AUDIO INTELLIGENCE & AUTO MIXING ENGINE
   async analyzeAudio(buffer: AudioBuffer): Promise<AudioProfile> {
     const data = buffer.getChannelData(0);
