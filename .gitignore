@@ -35,3 +35,4 @@ ios/App/Pods
 ios/App/build
 android/app/build
 android/.gradle
+.vercel
