@@ -632,6 +632,20 @@ export class ThetaAudioEngine {
     return new Blob([bufferArr], { type: "audio/wav" });
   }
 
+  private downloadBlob(blob: Blob, filename: string) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 100);
+  }
+
   // AUDIO INTELLIGENCE & AUTO MIXING ENGINE
   async analyzeAudio(buffer: AudioBuffer): Promise<AudioProfile> {
     const data = buffer.getChannelData(0);
