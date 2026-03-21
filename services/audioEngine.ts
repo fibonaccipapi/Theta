@@ -246,7 +246,8 @@ export class ThetaAudioEngine {
   }
 
   private createNoiseBuffer() {
-    const bufferSize = 2 * this.ctx!.sampleRate;
+    // Longer buffer (10 seconds) for smoother looping and less repetitive artifacts
+    const bufferSize = 10 * this.ctx!.sampleRate;
     const noiseBuffer = this.ctx!.createBuffer(1, bufferSize, this.ctx!.sampleRate);
     const output = noiseBuffer.getChannelData(0);
     for (let i = 0; i < bufferSize; i++) {
@@ -1017,8 +1018,8 @@ export class ThetaAudioEngine {
 
     // Add ocean soundscape layer if requested
     if (oceanVolume > 0) {
-      // Create noise buffer for ocean
-      const noiseBufferSize = 2 * sampleRate;
+      // Create noise buffer for ocean (10 seconds for smoother looping)
+      const noiseBufferSize = 10 * sampleRate;
       const oceanNoiseBuffer = offlineCtx.createBuffer(1, noiseBufferSize, sampleRate);
       const noiseData = oceanNoiseBuffer.getChannelData(0);
       for (let i = 0; i < noiseBufferSize; i++) {
@@ -1026,7 +1027,7 @@ export class ThetaAudioEngine {
       }
 
       // Calculate how many loops needed to cover full duration
-      const loopsNeeded = Math.ceil(durationSeconds / 2);
+      const loopsNeeded = Math.ceil(durationSeconds / 10);
 
       for (let loopIndex = 0; loopIndex < loopsNeeded; loopIndex++) {
         const oceanSource = offlineCtx.createBufferSource();
@@ -1045,14 +1046,14 @@ export class ThetaAudioEngine {
         oceanGain.connect(merger, 0, 0); // both channels
         oceanGain.connect(merger, 0, 1);
 
-        oceanSource.start(loopIndex * 2);
+        oceanSource.start(loopIndex * 10);
       }
     }
 
     // Add rain soundscape layer if requested
     if (rainVolume > 0) {
-      // Create noise buffer for rain
-      const noiseBufferSize = 2 * sampleRate;
+      // Create noise buffer for rain (10 seconds for smoother looping)
+      const noiseBufferSize = 10 * sampleRate;
       const rainNoiseBuffer = offlineCtx.createBuffer(1, noiseBufferSize, sampleRate);
       const noiseData = rainNoiseBuffer.getChannelData(0);
       for (let i = 0; i < noiseBufferSize; i++) {
@@ -1060,7 +1061,7 @@ export class ThetaAudioEngine {
       }
 
       // Calculate how many loops needed to cover full duration
-      const loopsNeeded = Math.ceil(durationSeconds / 2);
+      const loopsNeeded = Math.ceil(durationSeconds / 10);
 
       for (let loopIndex = 0; loopIndex < loopsNeeded; loopIndex++) {
         const rainSource = offlineCtx.createBufferSource();
@@ -1079,7 +1080,7 @@ export class ThetaAudioEngine {
         rainGain.connect(merger, 0, 0); // both channels
         rainGain.connect(merger, 0, 1);
 
-        rainSource.start(loopIndex * 2);
+        rainSource.start(loopIndex * 10);
       }
     }
 
@@ -1280,6 +1281,9 @@ export class ThetaAudioEngine {
   private loopAffBuffers: Array<{ id: string; buffer: AudioBuffer; duration: number }> = [];
   private loopScheduleInterval: number | null = null;
   private loopOptions: { vocalVolume: number; oceanVolume: number; rainVolume: number } | null = null;
+  private loopMerger: ChannelMergerNode | null = null;
+  private loopScheduledUntil: number = 0; // Track how far ahead we've scheduled
+  private loopAnimationFrame: number | null = null;
 
   async playLoopingSession(
     affirmations: Array<{ id: string; userRecording: string }>,
@@ -1383,40 +1387,57 @@ export class ThetaAudioEngine {
 
     // Connect to output
     merger.connect(this.ctx.destination);
+    this.loopMerger = merger;
 
     // 5. START LOOPING AFFIRMATIONS
-    // Schedule affirmations in chunks and reschedule when chunk ends
-    const scheduleNextChunk = () => {
-      if (!this.ctx || this.loopAffBuffers.length === 0) return;
+    // Use requestAnimationFrame for precise continuous scheduling
+    this.loopScheduledUntil = now;
 
-      const chunkDuration = 120; // Schedule 2 minutes at a time
-      const schedule = this.calculateAffirmationSchedule(this.loopAffBuffers, chunkDuration);
-      const now = this.ctx.currentTime;
+    const scheduleAhead = () => {
+      if (!this.ctx || !this.loopMerger || !this.loopOptions) return;
 
-      for (const item of schedule) {
-        const affBuffer = this.loopAffBuffers.find(a => a.id === item.affId);
-        if (affBuffer && this.loopOptions) {
-          const source = this.ctx.createBufferSource();
-          source.buffer = affBuffer.buffer;
-
-          const voiceGain = this.ctx.createGain();
-          voiceGain.gain.value = this.loopOptions.vocalVolume;
-
-          source.connect(voiceGain);
-          voiceGain.connect(merger, 0, 0);
-          voiceGain.connect(merger, 0, 1);
-
-          source.start(now + item.startTime);
-        }
+      // Only schedule if we have affirmations
+      if (this.loopAffBuffers.length === 0) {
+        // No affirmations, just keep checking
+        this.loopAnimationFrame = requestAnimationFrame(scheduleAhead);
+        return;
       }
 
-      // Schedule next chunk before this one ends
-      this.loopScheduleInterval = window.setTimeout(() => {
-        scheduleNextChunk();
-      }, (chunkDuration - 10) * 1000); // Reschedule 10 seconds before end
+      const currentTime = this.ctx.currentTime;
+      const scheduleAheadTime = 30; // Keep 30 seconds of audio scheduled ahead
+      const targetScheduleTime = currentTime + scheduleAheadTime;
+
+      // If we need to schedule more audio
+      if (this.loopScheduledUntil < targetScheduleTime) {
+        const chunkDuration = 60; // Schedule in 60-second chunks
+        const schedule = this.calculateAffirmationSchedule(this.loopAffBuffers, chunkDuration);
+
+        for (const item of schedule) {
+          const affBuffer = this.loopAffBuffers.find(a => a.id === item.affId);
+          if (affBuffer && this.loopOptions) {
+            const source = this.ctx.createBufferSource();
+            source.buffer = affBuffer.buffer;
+
+            const voiceGain = this.ctx.createGain();
+            voiceGain.gain.value = this.loopOptions.vocalVolume;
+
+            source.connect(voiceGain);
+            voiceGain.connect(this.loopMerger, 0, 0);
+            voiceGain.connect(this.loopMerger, 0, 1);
+
+            // Schedule relative to where we've already scheduled
+            source.start(this.loopScheduledUntil + item.startTime);
+          }
+        }
+
+        this.loopScheduledUntil += chunkDuration;
+      }
+
+      // Continue checking and scheduling
+      this.loopAnimationFrame = requestAnimationFrame(scheduleAhead);
     };
 
-    scheduleNextChunk();
+    scheduleAhead();
   }
 
   stopLoopingSession() {
@@ -1441,8 +1462,14 @@ export class ThetaAudioEngine {
         clearTimeout(this.loopScheduleInterval);
         this.loopScheduleInterval = null;
       }
+      if (this.loopAnimationFrame) {
+        cancelAnimationFrame(this.loopAnimationFrame);
+        this.loopAnimationFrame = null;
+      }
       this.loopAffBuffers = [];
       this.loopOptions = null;
+      this.loopMerger = null;
+      this.loopScheduledUntil = 0;
     } catch (e) {
       console.error('Error stopping loop:', e);
     }

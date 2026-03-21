@@ -54,12 +54,10 @@ const MixStudio: React.FC<MixStudioProps> = ({
   };
 
   const handleQuickExport = () => {
-    if (recordedAffirmations.length === 0) return;
     onExport(recordedAffirmations, 30, { vocalVolume: 1.0, oceanVolume: 0, rainVolume: 0 });
   };
 
   const handleAdvancedExport = () => {
-    if (selectedAffirmations.length === 0) return;
     onExport(selectedAffirmations, durationMinutes, { vocalVolume, oceanVolume, rainVolume });
   };
 
@@ -68,7 +66,6 @@ const MixStudio: React.FC<MixStudioProps> = ({
       audioEngine.stopMixPreview();
       setIsPreviewPlaying(false);
     } else {
-      if (selectedAffirmations.length === 0) return;
       // Stop loop if playing
       if (isLoopPlaying) {
         audioEngine.stopLoopingSession();
@@ -89,7 +86,6 @@ const MixStudio: React.FC<MixStudioProps> = ({
       audioEngine.stopLoopingSession();
       setIsLoopPlaying(false);
     } else {
-      if (selectedAffirmations.length === 0) return;
       // Stop preview if playing
       if (isPreviewPlaying) {
         audioEngine.stopMixPreview();
@@ -149,11 +145,11 @@ const MixStudio: React.FC<MixStudioProps> = ({
           ) : (
             <button
               onClick={handleQuickExport}
-              disabled={recordedAffirmations.length === 0 || isExporting}
+              disabled={isExporting}
               className="w-full neon-button-green py-4 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {recordedAffirmations.length === 0
-                ? 'Record Affirmations First'
+                ? 'Export Binaural + Soundscapes (30 min)'
                 : 'Export Hemisync Session (30 min)'}
             </button>
           )}
@@ -289,7 +285,7 @@ const MixStudio: React.FC<MixStudioProps> = ({
           <div className="grid grid-cols-2 gap-3">
             <button
               onClick={handlePreviewToggle}
-              disabled={selectedAffirmations.length === 0 || isExporting}
+              disabled={isExporting}
               className={`py-4 rounded-xl font-bold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
                 isPreviewPlaying
                   ? 'bg-hot-pink/20 border-2 border-hot-pink text-hot-pink hover:bg-hot-pink/30'
@@ -301,7 +297,7 @@ const MixStudio: React.FC<MixStudioProps> = ({
 
             <button
               onClick={handleLoopToggle}
-              disabled={selectedAffirmations.length === 0 || isExporting}
+              disabled={isExporting}
               className={`py-4 rounded-xl font-bold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
                 isLoopPlaying
                   ? 'bg-neon-green/20 border-2 border-neon-green text-neon-green hover:bg-neon-green/30'
@@ -340,11 +336,11 @@ const MixStudio: React.FC<MixStudioProps> = ({
           ) : (
             <button
               onClick={handleAdvancedExport}
-              disabled={selectedAffirmations.length === 0 || isExporting}
+              disabled={isExporting}
               className="w-full neon-button-green py-4 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {selectedAffirmations.length === 0
-                ? 'Select Affirmations to Export'
+                ? `Export Binaural + Soundscapes (${durationMinutes} min)`
                 : `Export Mix (${durationMinutes} min)`}
             </button>
           )}
