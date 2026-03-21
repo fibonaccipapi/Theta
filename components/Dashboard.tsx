@@ -192,7 +192,12 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   const handleExportMix = async (
     selectedAffirmations: Affirmation[],
-    durationMinutes: number
+    durationMinutes: number,
+    options: {
+      vocalVolume: number;
+      oceanVolume: number;
+      rainVolume: number;
+    }
   ) => {
     setIsExporting(true);
     setExportProgress({ current: 0, total: durationMinutes * 60 });
@@ -203,6 +208,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         { left: customHz, right: rightHz },
         binauralVolume,
         durationMinutes,
+        options,
         (current, total) => {
           setExportProgress({ current, total });
         }
@@ -628,6 +634,7 @@ const Dashboard: React.FC<DashboardProps> = ({
               affirmations={affirmations}
               currentBinauralHz={{ left: customHz, right: rightHz }}
               currentBinauralVolume={binauralVolume}
+              audioEngine={engine}
               onExport={handleExportMix}
               isExporting={isExporting}
               exportProgress={exportProgress}

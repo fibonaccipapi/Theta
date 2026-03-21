@@ -939,11 +939,21 @@ export class ThetaAudioEngine {
     binauralHz: { left: number; right: number },
     binauralVolume: number,
     durationMinutes: number,
+    options?: {
+      vocalVolume?: number;
+      oceanVolume?: number;
+      rainVolume?: number;
+    },
     onProgress?: (current: number, total: number) => void
   ): Promise<Blob> {
     const durationSeconds = durationMinutes * 60;
     const sampleRate = 44100;
     const offlineCtx = new OfflineAudioContext(2, sampleRate * durationSeconds, sampleRate);
+
+    // Extract options with defaults
+    const vocalVolume = options?.vocalVolume ?? 1.0;
+    const oceanVolume = options?.oceanVolume ?? 0;
+    const rainVolume = options?.rainVolume ?? 0;
 
     // Decode all affirmation recordings and get durations
     const affBuffers: Array<{ id: string; buffer: AudioBuffer; duration: number }> = [];
@@ -996,12 +1006,80 @@ export class ThetaAudioEngine {
 
         // Voice goes to both channels (center)
         const voiceGain = offlineCtx.createGain();
-        voiceGain.gain.value = 1.0; // Full volume for voice
+        voiceGain.gain.value = vocalVolume;
         source.connect(voiceGain);
         voiceGain.connect(merger, 0, 0);
         voiceGain.connect(merger, 0, 1);
 
         source.start(item.startTime);
+      }
+    }
+
+    // Add ocean soundscape layer if requested
+    if (oceanVolume > 0) {
+      // Create noise buffer for ocean
+      const noiseBufferSize = 2 * sampleRate;
+      const oceanNoiseBuffer = offlineCtx.createBuffer(1, noiseBufferSize, sampleRate);
+      const noiseData = oceanNoiseBuffer.getChannelData(0);
+      for (let i = 0; i < noiseBufferSize; i++) {
+        noiseData[i] = Math.random() * 2 - 1;
+      }
+
+      // Calculate how many loops needed to cover full duration
+      const loopsNeeded = Math.ceil(durationSeconds / 2);
+
+      for (let loopIndex = 0; loopIndex < loopsNeeded; loopIndex++) {
+        const oceanSource = offlineCtx.createBufferSource();
+        oceanSource.buffer = oceanNoiseBuffer;
+
+        // Apply lowpass filter for ocean sound
+        const oceanFilter = offlineCtx.createBiquadFilter();
+        oceanFilter.type = 'lowpass';
+        oceanFilter.frequency.value = 800; // Simplified: average between 400-1200Hz
+
+        const oceanGain = offlineCtx.createGain();
+        oceanGain.gain.value = oceanVolume;
+
+        oceanSource.connect(oceanFilter);
+        oceanFilter.connect(oceanGain);
+        oceanGain.connect(merger, 0, 0); // both channels
+        oceanGain.connect(merger, 0, 1);
+
+        oceanSource.start(loopIndex * 2);
+      }
+    }
+
+    // Add rain soundscape layer if requested
+    if (rainVolume > 0) {
+      // Create noise buffer for rain
+      const noiseBufferSize = 2 * sampleRate;
+      const rainNoiseBuffer = offlineCtx.createBuffer(1, noiseBufferSize, sampleRate);
+      const noiseData = rainNoiseBuffer.getChannelData(0);
+      for (let i = 0; i < noiseBufferSize; i++) {
+        noiseData[i] = Math.random() * 2 - 1;
+      }
+
+      // Calculate how many loops needed to cover full duration
+      const loopsNeeded = Math.ceil(durationSeconds / 2);
+
+      for (let loopIndex = 0; loopIndex < loopsNeeded; loopIndex++) {
+        const rainSource = offlineCtx.createBufferSource();
+        rainSource.buffer = rainNoiseBuffer;
+
+        // Apply lowpass filter for rain sound
+        const rainFilter = offlineCtx.createBiquadFilter();
+        rainFilter.type = 'lowpass';
+        rainFilter.frequency.value = 800;
+
+        const rainGain = offlineCtx.createGain();
+        rainGain.gain.value = rainVolume;
+
+        rainSource.connect(rainFilter);
+        rainFilter.connect(rainGain);
+        rainGain.connect(merger, 0, 0); // both channels
+        rainGain.connect(merger, 0, 1);
+
+        rainSource.start(loopIndex * 2);
       }
     }
 
@@ -1017,5 +1095,360 @@ export class ThetaAudioEngine {
     // Convert to WAV
     const wavBlob = this.bufferToWav(renderedBuffer);
     return wavBlob;
+  }
+
+  // Preview playback state
+  private previewOscL: OscillatorNode | null = null;
+  private previewOscR: OscillatorNode | null = null;
+  private previewGainL: GainNode | null = null;
+  private previewGainR: GainNode | null = null;
+  private previewVoiceSources: AudioBufferSourceNode[] = [];
+  private previewOceanSource: AudioBufferSourceNode | null = null;
+  private previewRainSource: AudioBufferSourceNode | null = null;
+  private previewStartTime: number = 0;
+
+  async playMixPreview(
+    affirmations: Array<{ id: string; userRecording: string }>,
+    binauralHz: { left: number; right: number },
+    binauralVolume: number,
+    options: {
+      vocalVolume: number;
+      oceanVolume: number;
+      rainVolume: number;
+    }
+  ) {
+    await this.init();
+    if (!this.ctx) return;
+
+    // Stop any existing preview
+    this.stopMixPreview();
+
+    const now = this.ctx.currentTime;
+    this.previewStartTime = now;
+
+    // Create stereo merger for mixing all layers
+    const merger = this.ctx.createChannelMerger(2);
+
+    // 1. BINAURAL BEATS LAYER
+    this.previewOscL = this.ctx.createOscillator();
+    this.previewOscL.frequency.value = binauralHz.left;
+    this.previewOscL.type = 'sine';
+
+    this.previewOscR = this.ctx.createOscillator();
+    this.previewOscR.frequency.value = binauralHz.right;
+    this.previewOscR.type = 'sine';
+
+    this.previewGainL = this.ctx.createGain();
+    this.previewGainL.gain.value = binauralVolume * 0.5;
+
+    this.previewGainR = this.ctx.createGain();
+    this.previewGainR.gain.value = binauralVolume * 0.5;
+
+    this.previewOscL.connect(this.previewGainL);
+    this.previewOscR.connect(this.previewGainR);
+
+    this.previewGainL.connect(merger, 0, 0); // left channel
+    this.previewGainR.connect(merger, 0, 1); // right channel
+
+    this.previewOscL.start(now);
+    this.previewOscR.start(now);
+
+    // 2. VOICE AFFIRMATIONS LAYER
+    // Decode all affirmations
+    const affBuffers: Array<{ id: string; buffer: AudioBuffer; duration: number }> = [];
+    for (const aff of affirmations) {
+      const affBytes = this.decodeBase64(aff.userRecording);
+      const buffer = await this.ctx.decodeAudioData(affBytes.buffer);
+      affBuffers.push({
+        id: aff.id,
+        buffer: buffer,
+        duration: buffer.duration
+      });
+    }
+
+    // For preview, play first 60 seconds of schedule
+    const schedule = this.calculateAffirmationSchedule(affBuffers, 60);
+
+    // Schedule affirmations
+    for (const item of schedule) {
+      const affBuffer = affBuffers.find(a => a.id === item.affId);
+      if (affBuffer) {
+        const source = this.ctx.createBufferSource();
+        source.buffer = affBuffer.buffer;
+
+        const voiceGain = this.ctx.createGain();
+        voiceGain.gain.value = options.vocalVolume;
+
+        source.connect(voiceGain);
+        voiceGain.connect(merger, 0, 0); // both channels
+        voiceGain.connect(merger, 0, 1);
+
+        source.start(now + item.startTime);
+        this.previewVoiceSources.push(source);
+      }
+    }
+
+    // 3. OCEAN SOUNDSCAPE LAYER (if enabled)
+    if (options.oceanVolume > 0) {
+      this.previewOceanSource = this.ctx.createBufferSource();
+      this.previewOceanSource.buffer = this.createNoiseBuffer();
+      this.previewOceanSource.loop = true;
+
+      const oceanFilter = this.ctx.createBiquadFilter();
+      oceanFilter.type = 'lowpass';
+      oceanFilter.frequency.value = 800;
+
+      const oceanGain = this.ctx.createGain();
+      oceanGain.gain.value = options.oceanVolume;
+
+      this.previewOceanSource.connect(oceanFilter);
+      oceanFilter.connect(oceanGain);
+      oceanGain.connect(merger, 0, 0);
+      oceanGain.connect(merger, 0, 1);
+
+      this.previewOceanSource.start(now);
+    }
+
+    // 4. RAIN SOUNDSCAPE LAYER (if enabled)
+    if (options.rainVolume > 0) {
+      this.previewRainSource = this.ctx.createBufferSource();
+      this.previewRainSource.buffer = this.createNoiseBuffer();
+      this.previewRainSource.loop = true;
+
+      const rainFilter = this.ctx.createBiquadFilter();
+      rainFilter.type = 'lowpass';
+      rainFilter.frequency.value = 800;
+
+      const rainGain = this.ctx.createGain();
+      rainGain.gain.value = options.rainVolume;
+
+      this.previewRainSource.connect(rainFilter);
+      rainFilter.connect(rainGain);
+      rainGain.connect(merger, 0, 0);
+      rainGain.connect(merger, 0, 1);
+
+      this.previewRainSource.start(now);
+    }
+
+    // Connect to output
+    merger.connect(this.ctx.destination);
+  }
+
+  stopMixPreview() {
+    try {
+      if (this.previewOscL) {
+        this.previewOscL.stop();
+        this.previewOscL = null;
+      }
+      if (this.previewOscR) {
+        this.previewOscR.stop();
+        this.previewOscR = null;
+      }
+      this.previewVoiceSources.forEach(source => {
+        try {
+          source.stop();
+        } catch (e) {
+          // Already stopped
+        }
+      });
+      this.previewVoiceSources = [];
+
+      if (this.previewOceanSource) {
+        this.previewOceanSource.stop();
+        this.previewOceanSource = null;
+      }
+      if (this.previewRainSource) {
+        this.previewRainSource.stop();
+        this.previewRainSource = null;
+      }
+    } catch (e) {
+      console.error('Error stopping preview:', e);
+    }
+  }
+
+  isPreviewPlaying(): boolean {
+    return this.previewOscL !== null;
+  }
+
+  // Looping session state
+  private loopOscL: OscillatorNode | null = null;
+  private loopOscR: OscillatorNode | null = null;
+  private loopGainL: GainNode | null = null;
+  private loopGainR: GainNode | null = null;
+  private loopOceanSource: AudioBufferSourceNode | null = null;
+  private loopRainSource: AudioBufferSourceNode | null = null;
+  private loopAffBuffers: Array<{ id: string; buffer: AudioBuffer; duration: number }> = [];
+  private loopScheduleInterval: number | null = null;
+  private loopOptions: { vocalVolume: number; oceanVolume: number; rainVolume: number } | null = null;
+
+  async playLoopingSession(
+    affirmations: Array<{ id: string; userRecording: string }>,
+    binauralHz: { left: number; right: number },
+    binauralVolume: number,
+    options: {
+      vocalVolume: number;
+      oceanVolume: number;
+      rainVolume: number;
+    }
+  ) {
+    await this.init();
+    if (!this.ctx) return;
+
+    // Stop any existing loop
+    this.stopLoopingSession();
+
+    const now = this.ctx.currentTime;
+    this.loopOptions = options;
+
+    // Create stereo merger for mixing all layers
+    const merger = this.ctx.createChannelMerger(2);
+
+    // 1. BINAURAL BEATS LAYER (continuous)
+    this.loopOscL = this.ctx.createOscillator();
+    this.loopOscL.frequency.value = binauralHz.left;
+    this.loopOscL.type = 'sine';
+
+    this.loopOscR = this.ctx.createOscillator();
+    this.loopOscR.frequency.value = binauralHz.right;
+    this.loopOscR.type = 'sine';
+
+    this.loopGainL = this.ctx.createGain();
+    this.loopGainL.gain.value = binauralVolume * 0.5;
+
+    this.loopGainR = this.ctx.createGain();
+    this.loopGainR.gain.value = binauralVolume * 0.5;
+
+    this.loopOscL.connect(this.loopGainL);
+    this.loopOscR.connect(this.loopGainR);
+
+    this.loopGainL.connect(merger, 0, 0);
+    this.loopGainR.connect(merger, 0, 1);
+
+    this.loopOscL.start(now);
+    this.loopOscR.start(now);
+
+    // 2. DECODE AFFIRMATIONS (once, then reuse buffers)
+    this.loopAffBuffers = [];
+    for (const aff of affirmations) {
+      const affBytes = this.decodeBase64(aff.userRecording);
+      const buffer = await this.ctx.decodeAudioData(affBytes.buffer);
+      this.loopAffBuffers.push({
+        id: aff.id,
+        buffer: buffer,
+        duration: buffer.duration
+      });
+    }
+
+    // 3. OCEAN SOUNDSCAPE LAYER (if enabled)
+    if (options.oceanVolume > 0) {
+      this.loopOceanSource = this.ctx.createBufferSource();
+      this.loopOceanSource.buffer = this.createNoiseBuffer();
+      this.loopOceanSource.loop = true;
+
+      const oceanFilter = this.ctx.createBiquadFilter();
+      oceanFilter.type = 'lowpass';
+      oceanFilter.frequency.value = 800;
+
+      const oceanGain = this.ctx.createGain();
+      oceanGain.gain.value = options.oceanVolume;
+
+      this.loopOceanSource.connect(oceanFilter);
+      oceanFilter.connect(oceanGain);
+      oceanGain.connect(merger, 0, 0);
+      oceanGain.connect(merger, 0, 1);
+
+      this.loopOceanSource.start(now);
+    }
+
+    // 4. RAIN SOUNDSCAPE LAYER (if enabled)
+    if (options.rainVolume > 0) {
+      this.loopRainSource = this.ctx.createBufferSource();
+      this.loopRainSource.buffer = this.createNoiseBuffer();
+      this.loopRainSource.loop = true;
+
+      const rainFilter = this.ctx.createBiquadFilter();
+      rainFilter.type = 'lowpass';
+      rainFilter.frequency.value = 800;
+
+      const rainGain = this.ctx.createGain();
+      rainGain.gain.value = options.rainVolume;
+
+      this.loopRainSource.connect(rainFilter);
+      rainFilter.connect(rainGain);
+      rainGain.connect(merger, 0, 0);
+      rainGain.connect(merger, 0, 1);
+
+      this.loopRainSource.start(now);
+    }
+
+    // Connect to output
+    merger.connect(this.ctx.destination);
+
+    // 5. START LOOPING AFFIRMATIONS
+    // Schedule affirmations in chunks and reschedule when chunk ends
+    const scheduleNextChunk = () => {
+      if (!this.ctx || this.loopAffBuffers.length === 0) return;
+
+      const chunkDuration = 120; // Schedule 2 minutes at a time
+      const schedule = this.calculateAffirmationSchedule(this.loopAffBuffers, chunkDuration);
+      const now = this.ctx.currentTime;
+
+      for (const item of schedule) {
+        const affBuffer = this.loopAffBuffers.find(a => a.id === item.affId);
+        if (affBuffer && this.loopOptions) {
+          const source = this.ctx.createBufferSource();
+          source.buffer = affBuffer.buffer;
+
+          const voiceGain = this.ctx.createGain();
+          voiceGain.gain.value = this.loopOptions.vocalVolume;
+
+          source.connect(voiceGain);
+          voiceGain.connect(merger, 0, 0);
+          voiceGain.connect(merger, 0, 1);
+
+          source.start(now + item.startTime);
+        }
+      }
+
+      // Schedule next chunk before this one ends
+      this.loopScheduleInterval = window.setTimeout(() => {
+        scheduleNextChunk();
+      }, (chunkDuration - 10) * 1000); // Reschedule 10 seconds before end
+    };
+
+    scheduleNextChunk();
+  }
+
+  stopLoopingSession() {
+    try {
+      if (this.loopOscL) {
+        this.loopOscL.stop();
+        this.loopOscL = null;
+      }
+      if (this.loopOscR) {
+        this.loopOscR.stop();
+        this.loopOscR = null;
+      }
+      if (this.loopOceanSource) {
+        this.loopOceanSource.stop();
+        this.loopOceanSource = null;
+      }
+      if (this.loopRainSource) {
+        this.loopRainSource.stop();
+        this.loopRainSource = null;
+      }
+      if (this.loopScheduleInterval) {
+        clearTimeout(this.loopScheduleInterval);
+        this.loopScheduleInterval = null;
+      }
+      this.loopAffBuffers = [];
+      this.loopOptions = null;
+    } catch (e) {
+      console.error('Error stopping loop:', e);
+    }
+  }
+
+  isLoopPlaying(): boolean {
+    return this.loopOscL !== null;
   }
 }

@@ -1,13 +1,20 @@
 import React, { useState } from 'react';
 import { Affirmation } from '../types';
+import { AudioEngine } from '../services/audioEngine';
 
 interface MixStudioProps {
   affirmations: Affirmation[];
   currentBinauralHz: { left: number; right: number };
   currentBinauralVolume: number;
+  audioEngine: AudioEngine;
   onExport: (
     selectedAffirmations: Affirmation[],
-    durationMinutes: number
+    durationMinutes: number,
+    options: {
+      vocalVolume: number;
+      oceanVolume: number;
+      rainVolume: number;
+    }
   ) => void;
   isExporting: boolean;
   exportProgress: { current: number; total: number } | null;
@@ -17,6 +24,7 @@ const MixStudio: React.FC<MixStudioProps> = ({
   affirmations,
   currentBinauralHz,
   currentBinauralVolume,
+  audioEngine,
   onExport,
   isExporting,
   exportProgress
@@ -26,6 +34,11 @@ const MixStudio: React.FC<MixStudioProps> = ({
     new Set(affirmations.filter(a => a.userRecording).map(a => a.id))
   );
   const [durationMinutes, setDurationMinutes] = useState(30);
+  const [vocalVolume, setVocalVolume] = useState(1.0);
+  const [oceanVolume, setOceanVolume] = useState(0);
+  const [rainVolume, setRainVolume] = useState(0);
+  const [isPreviewPlaying, setIsPreviewPlaying] = useState(false);
+  const [isLoopPlaying, setIsLoopPlaying] = useState(false);
 
   const recordedAffirmations = affirmations.filter(a => a.userRecording);
   const selectedAffirmations = recordedAffirmations.filter(a => selectedAffIds.has(a.id));
@@ -42,12 +55,54 @@ const MixStudio: React.FC<MixStudioProps> = ({
 
   const handleQuickExport = () => {
     if (recordedAffirmations.length === 0) return;
-    onExport(recordedAffirmations, 30);
+    onExport(recordedAffirmations, 30, { vocalVolume: 1.0, oceanVolume: 0, rainVolume: 0 });
   };
 
   const handleAdvancedExport = () => {
     if (selectedAffirmations.length === 0) return;
-    onExport(selectedAffirmations, durationMinutes);
+    onExport(selectedAffirmations, durationMinutes, { vocalVolume, oceanVolume, rainVolume });
+  };
+
+  const handlePreviewToggle = async () => {
+    if (isPreviewPlaying) {
+      audioEngine.stopMixPreview();
+      setIsPreviewPlaying(false);
+    } else {
+      if (selectedAffirmations.length === 0) return;
+      // Stop loop if playing
+      if (isLoopPlaying) {
+        audioEngine.stopLoopingSession();
+        setIsLoopPlaying(false);
+      }
+      await audioEngine.playMixPreview(
+        selectedAffirmations,
+        currentBinauralHz,
+        currentBinauralVolume,
+        { vocalVolume, oceanVolume, rainVolume }
+      );
+      setIsPreviewPlaying(true);
+    }
+  };
+
+  const handleLoopToggle = async () => {
+    if (isLoopPlaying) {
+      audioEngine.stopLoopingSession();
+      setIsLoopPlaying(false);
+    } else {
+      if (selectedAffirmations.length === 0) return;
+      // Stop preview if playing
+      if (isPreviewPlaying) {
+        audioEngine.stopMixPreview();
+        setIsPreviewPlaying(false);
+      }
+      await audioEngine.playLoopingSession(
+        selectedAffirmations,
+        currentBinauralHz,
+        currentBinauralVolume,
+        { vocalVolume, oceanVolume, rainVolume }
+      );
+      setIsLoopPlaying(true);
+    }
   };
 
   const beatFrequency = Math.abs(currentBinauralHz.right - currentBinauralHz.left);
@@ -165,12 +220,105 @@ const MixStudio: React.FC<MixStudioProps> = ({
             </div>
           </div>
 
+          {/* Volume Controls */}
+          <div className="space-y-4">
+            <h5 className="text-[9px] uppercase tracking-[0.4em] text-slate-600 font-black">Mix Levels</h5>
+
+            {/* Vocal Volume */}
+            <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5">
+              <div className="flex justify-between mb-2">
+                <span className="text-white text-xs">Vocal Volume</span>
+                <span className="text-neon-green font-mono text-xs">{Math.round(vocalVolume * 100)}%</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={vocalVolume}
+                onChange={(e) => setVocalVolume(Number(e.target.value))}
+                className="w-full h-[2px] bg-white/10 rounded-lg appearance-none cursor-pointer accent-neon-green"
+              />
+            </div>
+
+            {/* Ocean Volume */}
+            <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5">
+              <div className="flex justify-between mb-2">
+                <span className="text-white text-xs">Ocean Soundscape</span>
+                <span className="text-hot-pink font-mono text-xs">{Math.round(oceanVolume * 100)}%</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="0.6"
+                step="0.01"
+                value={oceanVolume}
+                onChange={(e) => setOceanVolume(Number(e.target.value))}
+                className="w-full h-[2px] bg-white/10 rounded-lg appearance-none cursor-pointer accent-hot-pink"
+              />
+              <p className="text-slate-600 text-[9px] mt-1">Set to 0% to disable</p>
+            </div>
+
+            {/* Rain Volume */}
+            <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5">
+              <div className="flex justify-between mb-2">
+                <span className="text-white text-xs">Rain Soundscape</span>
+                <span className="text-gold font-mono text-xs">{Math.round(rainVolume * 100)}%</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="0.6"
+                step="0.01"
+                value={rainVolume}
+                onChange={(e) => setRainVolume(Number(e.target.value))}
+                className="w-full h-[2px] bg-white/10 rounded-lg appearance-none cursor-pointer accent-gold"
+              />
+              <p className="text-slate-600 text-[9px] mt-1">Set to 0% to disable</p>
+            </div>
+          </div>
+
           {/* Spacing Info */}
           <div className="p-3 rounded-xl bg-neon-green/5 border border-neon-green/20">
             <p className="text-neon-green text-xs">
               <span className="font-bold">Auto-spacing:</span> Affirmations will be intelligently spaced based on their duration
             </p>
           </div>
+
+          {/* Preview & Loop Buttons */}
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={handlePreviewToggle}
+              disabled={selectedAffirmations.length === 0 || isExporting}
+              className={`py-4 rounded-xl font-bold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                isPreviewPlaying
+                  ? 'bg-hot-pink/20 border-2 border-hot-pink text-hot-pink hover:bg-hot-pink/30'
+                  : 'bg-white/5 border-2 border-white/20 text-white hover:border-neon-green hover:text-neon-green'
+              }`}
+            >
+              {isPreviewPlaying ? '⏸ Stop' : '▶ Preview'}
+            </button>
+
+            <button
+              onClick={handleLoopToggle}
+              disabled={selectedAffirmations.length === 0 || isExporting}
+              className={`py-4 rounded-xl font-bold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                isLoopPlaying
+                  ? 'bg-neon-green/20 border-2 border-neon-green text-neon-green hover:bg-neon-green/30'
+                  : 'bg-white/5 border-2 border-white/20 text-white hover:border-gold hover:text-gold'
+              }`}
+            >
+              {isLoopPlaying ? '⏹ Stop Loop' : '🔄 Loop in App'}
+            </button>
+          </div>
+
+          {isLoopPlaying && (
+            <div className="p-3 rounded-xl bg-neon-green/5 border border-neon-green/20">
+              <p className="text-neon-green text-xs text-center">
+                <span className="font-bold">🔄 Looping...</span> Session will play continuously until stopped
+              </p>
+            </div>
+          )}
 
           {/* Export Button */}
           {isExporting && exportProgress ? (
