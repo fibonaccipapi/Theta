@@ -3,17 +3,19 @@ import React, { useState, useRef, useEffect } from 'react';
 import { ThetaAudioEngine } from '../services/audioEngine';
 
 interface VoiceManagerProps {
-  onSave: (base64Data: string, label: string) => void;
+  onSave: (base64Data: string, label: string, customText?: string) => void;
   onBack: () => void;
   targetAffirmation: string;
+  allowCustomText?: boolean;
 }
 
-const VoiceManager: React.FC<VoiceManagerProps> = ({ onSave, onBack, targetAffirmation = "" }) => {
+const VoiceManager: React.FC<VoiceManagerProps> = ({ onSave, onBack, targetAffirmation = "", allowCustomText = false }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [recordingTime, setRecordingTime] = useState(0);
   const [status, setStatus] = useState<'idle' | 'recording' | 'review' | 'synthesizing'>('idle');
   const [previewPlaying, setPreviewPlaying] = useState(false);
+  const [customAffirmationText, setCustomAffirmationText] = useState(targetAffirmation || '');
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -135,15 +137,15 @@ const VoiceManager: React.FC<VoiceManagerProps> = ({ onSave, onBack, targetAffir
   const handleFinalize = async () => {
     if (audioBlob) {
       setStatus('synthesizing');
-      
+
       // Simulate Neural Synthesis/Voice Cloning Analysis
       await new Promise(r => setTimeout(r, 2000));
-      
+
       const reader = new FileReader();
       reader.readAsDataURL(audioBlob);
       reader.onloadend = () => {
         const base64data = reader.result as string;
-        onSave(base64data, targetAffirmation);
+        onSave(base64data, 'Neural Imprint', allowCustomText ? customAffirmationText : undefined);
       };
     }
   };
@@ -157,26 +159,48 @@ const VoiceManager: React.FC<VoiceManagerProps> = ({ onSave, onBack, targetAffir
         <p className="text-white/40 text-[10px] tracking-[0.5em] uppercase font-bold">Vocal Imprint Required</p>
       </header>
 
-      <div className="glass-panel w-full p-10 rounded-[40px] mb-12 border-neon-green/20 relative overflow-hidden flex flex-col items-center min-h-[280px] justify-center">
-        <canvas ref={canvasRef} className="absolute inset-0 w-full h-full opacity-60 pointer-events-none" />
-        
-        {status === 'synthesizing' ? (
-          <div className="flex flex-col items-center z-10">
-            <div className="w-16 h-16 border-2 border-neon-green border-t-transparent rounded-full animate-spin mb-6 shadow-[0_0_20px_rgba(0,255,159,0.4)]" />
-            <p className="neon-text-green text-[10px] uppercase tracking-[0.4em] font-bold animate-pulse">Cloning Imprint...</p>
-          </div>
-        ) : (
-          <div className="relative z-10 flex flex-col items-center w-full">
-            <div className="flex items-center space-x-2 mb-6">
-              <div className="w-1.5 h-1.5 rounded-full bg-neon-green animate-pulse shadow-[0_0_8px_#00FF9F]" />
-              <p className="text-[10px] uppercase tracking-[0.4em] text-neon-green font-black">Neural Target</p>
+      {/* Custom Affirmation Input */}
+      {allowCustomText && (
+        <div className="mb-8 w-full">
+          <label className="block text-xs font-bold uppercase tracking-[0.3em] text-slate-400 mb-3">
+            Your Affirmation
+          </label>
+          <input
+            type="text"
+            value={customAffirmationText}
+            onChange={(e) => setCustomAffirmationText(e.target.value)}
+            placeholder="Type your affirmation (e.g., I am confident and capable)"
+            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:border-neon-green/50 transition-colors"
+            disabled={status !== 'idle'}
+          />
+          <p className="text-[10px] text-slate-600 mt-2">
+            You'll record audio of yourself saying this affirmation
+          </p>
+        </div>
+      )}
+
+      {!allowCustomText && targetAffirmation && (
+        <div className="glass-panel w-full p-10 rounded-[40px] mb-12 border-neon-green/20 relative overflow-hidden flex flex-col items-center min-h-[280px] justify-center">
+          <canvas ref={canvasRef} className="absolute inset-0 w-full h-full opacity-60 pointer-events-none" />
+
+          {status === 'synthesizing' ? (
+            <div className="flex flex-col items-center z-10">
+              <div className="w-16 h-16 border-2 border-neon-green border-t-transparent rounded-full animate-spin mb-6 shadow-[0_0_20px_rgba(0,255,159,0.4)]" />
+              <p className="neon-text-green text-[10px] uppercase tracking-[0.4em] font-bold animate-pulse">Cloning Imprint...</p>
             </div>
-            <p className={`font-display text-center text-white leading-relaxed px-4 whitespace-pre-line drop-shadow-[0_0_10px_rgba(255,255,255,0.2)] ${isMultiLine ? 'text-xl md:text-2xl' : 'text-2xl md:text-3xl'}`}>
-              "{targetAffirmation}"
-            </p>
-          </div>
-        )}
-      </div>
+          ) : (
+            <div className="relative z-10 flex flex-col items-center w-full">
+              <div className="flex items-center space-x-2 mb-6">
+                <div className="w-1.5 h-1.5 rounded-full bg-neon-green animate-pulse shadow-[0_0_8px_#00FF9F]" />
+                <p className="text-[10px] uppercase tracking-[0.4em] text-neon-green font-black">Neural Target</p>
+              </div>
+              <p className={`font-display text-center text-white leading-relaxed px-4 whitespace-pre-line drop-shadow-[0_0_10px_rgba(255,255,255,0.2)] ${isMultiLine ? 'text-xl md:text-2xl' : 'text-2xl md:text-3xl'}`}>
+                "{targetAffirmation}"
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="flex flex-col items-center space-y-10 w-full">
         {status === 'idle' || status === 'recording' ? (

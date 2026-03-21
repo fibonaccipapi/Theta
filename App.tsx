@@ -156,14 +156,33 @@ const App: React.FC = () => {
     setAppState(AppState.RESULTS);
   };
 
-  const handleVoiceSave = (audioData: string) => {
+  const handleVoiceSave = (audioData: string, label?: string, customText?: string) => {
     if (activeRecordingAff) {
       if (activeSessionId) {
         setSessions(prev => prev.map(s => {
           if (s.id === activeSessionId) {
-            const updatedAffirmations = s.analysis.affirmations.map(aff => 
-              aff.id === activeRecordingAff.id ? { ...aff, userRecording: audioData } : aff
-            );
+            const affExists = s.analysis.affirmations.some(aff => aff.id === activeRecordingAff.id);
+
+            let updatedAffirmations;
+            if (affExists) {
+              // Update existing affirmation
+              updatedAffirmations = s.analysis.affirmations.map(aff =>
+                aff.id === activeRecordingAff.id
+                  ? { ...aff, userRecording: audioData, ...(customText && { text: customText }) }
+                  : aff
+              );
+            } else {
+              // Create new affirmation
+              const newAffirmation: Affirmation = {
+                id: activeRecordingAff.id,
+                text: customText || activeRecordingAff.text || 'Custom Affirmation',
+                layer: activeRecordingAff.layer || 'identity',
+                intensity: activeRecordingAff.intensity || 'calibrated',
+                userRecording: audioData
+              };
+              updatedAffirmations = [...s.analysis.affirmations, newAffirmation];
+            }
+
             return { ...s, analysis: { ...s.analysis, affirmations: updatedAffirmations } };
           }
           return s;
@@ -171,7 +190,7 @@ const App: React.FC = () => {
       }
       setActiveRecordingAff(null);
     } else {
-      const newVoice: UserVoiceData = { id: Date.now().toString(), audioData, label: "Biometric Seed", calibrated: true, timestamp: Date.now() };
+      const newVoice: UserVoiceData = { id: Date.now().toString(), audioData, label: label || "Biometric Seed", calibrated: true, timestamp: Date.now() };
       setVoiceLibrary([newVoice, ...voiceLibrary.slice(0, 1)]);
     }
     setAppState(AppState.DASHBOARD);
@@ -394,12 +413,15 @@ const App: React.FC = () => {
       case AppState.FREQUENCY_MAP:
         return <FrequencyMap onBack={() => setAppState(AppState.DASHBOARD)} />;
 
-      case AppState.VOICE_CALIBRATION: 
-        return <VoiceManager 
-          targetAffirmation={(activeRecordingAff && activeRecordingAff.text) ? activeRecordingAff.text : "I AM now calibrating my unique neural biometric seed. I AM safe to be heard. I AM safe to be seen."} 
-          onSave={handleVoiceSave} 
-          onBack={() => { setActiveRecordingAff(null); setAppState(AppState.DASHBOARD); }} 
-        />;
+      case AppState.VOICE_CALIBRATION:
+        return (
+          <VoiceManager
+            targetAffirmation={activeRecordingAff?.text || ''}
+            allowCustomText={!activeRecordingAff?.text || activeRecordingAff?.text === ''}
+            onSave={handleVoiceSave}
+            onBack={() => { setActiveRecordingAff(null); setAppState(AppState.DASHBOARD); }}
+          />
+        );
 
       case AppState.SOUNDSCAPE_EDITOR:
         return beliefAnalysis ? (
