@@ -275,7 +275,7 @@ const App: React.FC = () => {
                           id: Date.now().toString(),
                           timestamp: Date.now(),
                           analysis: createEmptyAnalysis(),
-                          label: "Quick Start Session"
+                          label: `Session ${sessions.length + 1}`
                         };
                         setSessions([emptySession]);
                         setActiveSessionId(emptySession.id);
