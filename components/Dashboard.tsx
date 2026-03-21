@@ -230,76 +230,64 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-12 pb-40 relative">
-      <header className="mb-16 flex flex-col md:flex-row md:items-end justify-between gap-12">
-        <div className="relative">
-          <div className="absolute -left-8 top-0 w-1 h-full bg-gradient-to-b from-neon-green to-transparent opacity-50"></div>
-          <p className="text-neon-green text-[10px] uppercase tracking-[0.5em] font-black mb-4 flex items-center">
-            <span className="w-2 h-2 bg-neon-green rounded-full mr-3 animate-pulse"></span>
-            Neural Status: Optimized
-          </p>
-          <h1 className="text-6xl md:text-7xl font-display font-bold tracking-tighter leading-tight text-white">
-            SYSTEM <span className="neon-text-pink italic font-serif font-normal">MAP</span>
-          </h1>
-          <p className="text-slate-500 text-sm mt-4 font-light tracking-wide flex items-center">
-            Current Archetype: <span className="text-neon-green font-bold uppercase tracking-widest text-[11px] ml-2">The {vocalArchetype}</span>
-            <span className="mx-4 w-1 h-1 bg-slate-800 rounded-full"></span>
-            Active Map: <span className="text-white font-bold uppercase tracking-widest text-[11px] ml-2">{activeSessionLabel || 'Primary'}</span>
-          </p>
-        </div>
-        
-        <div className="flex flex-col md:flex-row gap-6">
-          <button 
-            onClick={onIdentityLockIn}
-            className="glass-panel p-6 rounded-3xl flex items-center space-x-8 min-w-[240px] border border-hot-pink/30 bg-hot-pink/5 hover:bg-hot-pink/10 transition-all group"
-          >
-             <div className="text-right flex-1">
-               <p className="text-[10px] text-hot-pink uppercase tracking-[0.3em] font-bold mb-1">Daily Protocol</p>
-               <p className="text-xl font-display font-bold text-white group-hover:neon-text-pink transition-all">Identity Lock-In</p>
-             </div>
-             <div className="w-12 h-12 rounded-full bg-hot-pink/20 flex items-center justify-center text-hot-pink group-hover:scale-110 transition-all">
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-             </div>
-          </button>
+      <header className="mb-12 flex flex-col gap-8">
+        {/* Title Row */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="relative">
+            <div className="absolute -left-8 top-0 w-1 h-full bg-gradient-to-b from-neon-green to-transparent opacity-50"></div>
+            <p className="text-neon-green text-[10px] uppercase tracking-[0.5em] font-black mb-4 flex items-center">
+              <span className="w-2 h-2 bg-neon-green rounded-full mr-3 animate-pulse"></span>
+              Neural Status: Optimized
+            </p>
+            <h1 className="text-5xl md:text-6xl font-display font-bold tracking-tighter leading-tight text-white">
+              SYSTEM <span className="neon-text-pink italic font-serif font-normal">MAP</span>
+            </h1>
+            <p className="text-slate-500 text-sm mt-4 font-light tracking-wide flex items-center flex-wrap gap-4">
+              <span>Active Map: <span className="text-white font-bold uppercase tracking-widest text-[11px] ml-2">{activeSessionLabel || 'Primary'}</span></span>
+            </p>
+          </div>
 
-          <button 
-            onClick={onAudioEngine}
-            className="glass-panel p-6 rounded-3xl flex items-center space-x-8 min-w-[240px] border border-neon-green/30 bg-neon-green/5 hover:bg-neon-green/10 transition-all group"
-          >
-             <div className="text-right flex-1">
-               <p className="text-[10px] text-neon-green uppercase tracking-[0.3em] font-bold mb-1">Sonic DNA</p>
-               <p className="text-xl font-display font-bold text-white group-hover:neon-text-green transition-all">Audio Engine</p>
-             </div>
-             <div className="w-12 h-12 rounded-full bg-neon-green/20 flex items-center justify-center text-neon-green group-hover:scale-110 transition-all">
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" /></svg>
-             </div>
-          </button>
+          {/* Utility Buttons */}
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={onIdentityLockIn}
+              className="px-4 py-2 rounded-full border border-hot-pink/20 bg-hot-pink/5 hover:bg-hot-pink/10 transition-all text-[10px] uppercase tracking-[0.2em] font-bold text-hot-pink flex items-center space-x-2"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+              <span>Daily Protocol</span>
+            </button>
 
-          <button 
-            onClick={onFrequencyMap}
-            className="glass-panel p-6 rounded-3xl flex items-center space-x-8 min-w-[240px] border border-white/10 bg-white/5 hover:bg-white/10 transition-all group"
-          >
-             <div className="text-right flex-1">
-               <p className="text-[10px] text-slate-500 uppercase tracking-[0.3em] font-bold mb-1">Neural Atlas</p>
-               <p className="text-xl font-display font-bold text-white group-hover:neon-text-green transition-all">Frequency Map</p>
-             </div>
-             <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center text-slate-400 group-hover:scale-110 group-hover:text-neon-green transition-all">
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A2 2 0 013 15.487V6.513a2 2 0 011.553-1.943L9 2l5.447 2.724A2 2 0 0116 6.667v8.82a2 2 0 01-1.553 1.943L9 20z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20V9" /></svg>
-             </div>
-          </button>
+            <button
+              onClick={onAudioEngine}
+              className="px-4 py-2 rounded-full border border-neon-green/20 bg-neon-green/5 hover:bg-neon-green/10 transition-all text-[10px] uppercase tracking-[0.2em] font-bold text-neon-green flex items-center space-x-2"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+              </svg>
+              <span>Sonic DNA</span>
+            </button>
 
-          <div className="glass-panel p-6 rounded-3xl flex items-center space-x-8 min-w-[240px] neon-border-green">
-             <div className="text-right flex-1">
-               <p className="text-[10px] text-slate-500 uppercase tracking-[0.3em] font-bold mb-1">Frequency Shift</p>
-               <p className="text-xl font-display font-bold text-white truncate max-w-[200px]">{analysis.desiredFrequency?.pattern || 'Optimizing'}</p>
-             </div>
-             <div className="relative w-16 h-16 flex items-center justify-center">
-                <div className="absolute inset-0 rounded-full border-2 border-white/5"></div>
-                <div 
-                  className="absolute inset-0 rounded-full border-2 border-neon-green border-t-transparent animate-spin" 
-                  style={{ animationDuration: '2s', boxShadow: '0 0 15px rgba(0,255,159,0.2)' }} 
-                />
-                <div className="w-8 h-8 bg-neon-green/10 rounded-full blur-md animate-pulse"></div>
-             </div>
+            <button
+              onClick={onFrequencyMap}
+              className="px-4 py-2 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 transition-all text-[10px] uppercase tracking-[0.2em] font-bold text-slate-400 hover:text-white flex items-center space-x-2"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A2 2 0 013 15.487V6.513a2 2 0 011.553-1.943L9 2l5.447 2.724A2 2 0 0116 6.667v8.82a2 2 0 01-1.553 1.943L9 20z" />
+              </svg>
+              <span>Neural Atlas</span>
+            </button>
+
+            <button
+              onClick={onStartNewAnalysis}
+              className="px-4 py-2 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 transition-all text-[10px] uppercase tracking-[0.2em] font-bold text-slate-400 hover:text-white flex items-center space-x-2"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              <span>New Analysis</span>
+            </button>
           </div>
         </div>
       </header>
