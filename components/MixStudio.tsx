@@ -232,7 +232,17 @@ const MixStudio: React.FC<MixStudioProps> = ({
                 max="1"
                 step="0.01"
                 value={vocalVolume}
-                onChange={(e) => setVocalVolume(Number(e.target.value))}
+                onChange={(e) => {
+                  const newVolume = Number(e.target.value);
+                  setVocalVolume(newVolume);
+                  // Update live playback if active
+                  if (isPreviewPlaying) {
+                    audioEngine.updatePreviewVolumes(newVolume, oceanVolume, rainVolume);
+                  }
+                  if (isLoopPlaying) {
+                    audioEngine.updateLoopVolumes(newVolume, oceanVolume, rainVolume);
+                  }
+                }}
                 className="w-full h-[2px] bg-white/10 rounded-lg appearance-none cursor-pointer accent-neon-green"
               />
             </div>
@@ -249,7 +259,17 @@ const MixStudio: React.FC<MixStudioProps> = ({
                 max="0.6"
                 step="0.01"
                 value={oceanVolume}
-                onChange={(e) => setOceanVolume(Number(e.target.value))}
+                onChange={(e) => {
+                  const newVolume = Number(e.target.value);
+                  setOceanVolume(newVolume);
+                  // Update live playback if active
+                  if (isPreviewPlaying) {
+                    audioEngine.updatePreviewVolumes(vocalVolume, newVolume, rainVolume);
+                  }
+                  if (isLoopPlaying) {
+                    audioEngine.updateLoopVolumes(vocalVolume, newVolume, rainVolume);
+                  }
+                }}
                 className="w-full h-[2px] bg-white/10 rounded-lg appearance-none cursor-pointer accent-hot-pink"
               />
               <p className="text-slate-600 text-[9px] mt-1">Set to 0% to disable</p>
@@ -267,7 +287,17 @@ const MixStudio: React.FC<MixStudioProps> = ({
                 max="0.6"
                 step="0.01"
                 value={rainVolume}
-                onChange={(e) => setRainVolume(Number(e.target.value))}
+                onChange={(e) => {
+                  const newVolume = Number(e.target.value);
+                  setRainVolume(newVolume);
+                  // Update live playback if active
+                  if (isPreviewPlaying) {
+                    audioEngine.updatePreviewVolumes(vocalVolume, oceanVolume, newVolume);
+                  }
+                  if (isLoopPlaying) {
+                    audioEngine.updateLoopVolumes(vocalVolume, oceanVolume, newVolume);
+                  }
+                }}
                 className="w-full h-[2px] bg-white/10 rounded-lg appearance-none cursor-pointer accent-gold"
               />
               <p className="text-slate-600 text-[9px] mt-1">Set to 0% to disable</p>

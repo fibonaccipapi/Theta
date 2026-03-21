@@ -1107,6 +1107,9 @@ export class ThetaAudioEngine {
   private previewOceanSource: AudioBufferSourceNode | null = null;
   private previewRainSource: AudioBufferSourceNode | null = null;
   private previewStartTime: number = 0;
+  private previewVoiceGain: GainNode | null = null;
+  private previewOceanGain: GainNode | null = null;
+  private previewRainGain: GainNode | null = null;
 
   async playMixPreview(
     affirmations: Array<{ id: string; userRecording: string }>,
@@ -1155,6 +1158,12 @@ export class ThetaAudioEngine {
     this.previewOscR.start(now);
 
     // 2. VOICE AFFIRMATIONS LAYER
+    // Create master voice gain node for real-time control
+    this.previewVoiceGain = this.ctx.createGain();
+    this.previewVoiceGain.gain.value = options.vocalVolume;
+    this.previewVoiceGain.connect(merger, 0, 0); // both channels
+    this.previewVoiceGain.connect(merger, 0, 1);
+
     // Decode all affirmations
     const affBuffers: Array<{ id: string; buffer: AudioBuffer; duration: number }> = [];
     for (const aff of affirmations) {
@@ -1170,20 +1179,14 @@ export class ThetaAudioEngine {
     // For preview, play first 60 seconds of schedule
     const schedule = this.calculateAffirmationSchedule(affBuffers, 60);
 
-    // Schedule affirmations
+    // Schedule affirmations - all connect to master voice gain
     for (const item of schedule) {
       const affBuffer = affBuffers.find(a => a.id === item.affId);
       if (affBuffer) {
         const source = this.ctx.createBufferSource();
         source.buffer = affBuffer.buffer;
 
-        const voiceGain = this.ctx.createGain();
-        voiceGain.gain.value = options.vocalVolume;
-
-        source.connect(voiceGain);
-        voiceGain.connect(merger, 0, 0); // both channels
-        voiceGain.connect(merger, 0, 1);
-
+        source.connect(this.previewVoiceGain);
         source.start(now + item.startTime);
         this.previewVoiceSources.push(source);
       }
@@ -1199,13 +1202,13 @@ export class ThetaAudioEngine {
       oceanFilter.type = 'lowpass';
       oceanFilter.frequency.value = 800;
 
-      const oceanGain = this.ctx.createGain();
-      oceanGain.gain.value = options.oceanVolume;
+      this.previewOceanGain = this.ctx.createGain();
+      this.previewOceanGain.gain.value = options.oceanVolume;
 
       this.previewOceanSource.connect(oceanFilter);
-      oceanFilter.connect(oceanGain);
-      oceanGain.connect(merger, 0, 0);
-      oceanGain.connect(merger, 0, 1);
+      oceanFilter.connect(this.previewOceanGain);
+      this.previewOceanGain.connect(merger, 0, 0);
+      this.previewOceanGain.connect(merger, 0, 1);
 
       this.previewOceanSource.start(now);
     }
@@ -1220,13 +1223,13 @@ export class ThetaAudioEngine {
       rainFilter.type = 'lowpass';
       rainFilter.frequency.value = 800;
 
-      const rainGain = this.ctx.createGain();
-      rainGain.gain.value = options.rainVolume;
+      this.previewRainGain = this.ctx.createGain();
+      this.previewRainGain.gain.value = options.rainVolume;
 
       this.previewRainSource.connect(rainFilter);
-      rainFilter.connect(rainGain);
-      rainGain.connect(merger, 0, 0);
-      rainGain.connect(merger, 0, 1);
+      rainFilter.connect(this.previewRainGain);
+      this.previewRainGain.connect(merger, 0, 0);
+      this.previewRainGain.connect(merger, 0, 1);
 
       this.previewRainSource.start(now);
     }
@@ -1262,8 +1265,29 @@ export class ThetaAudioEngine {
         this.previewRainSource.stop();
         this.previewRainSource = null;
       }
+      this.previewVoiceGain = null;
+      this.previewOceanGain = null;
+      this.previewRainGain = null;
     } catch (e) {
       console.error('Error stopping preview:', e);
+    }
+  }
+
+  updatePreviewVolumes(vocalVolume: number, oceanVolume: number, rainVolume: number) {
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+
+    if (this.previewVoiceGain) {
+      this.previewVoiceGain.gain.cancelScheduledValues(now);
+      this.previewVoiceGain.gain.linearRampToValueAtTime(vocalVolume, now + 0.05);
+    }
+    if (this.previewOceanGain) {
+      this.previewOceanGain.gain.cancelScheduledValues(now);
+      this.previewOceanGain.gain.linearRampToValueAtTime(oceanVolume, now + 0.05);
+    }
+    if (this.previewRainGain) {
+      this.previewRainGain.gain.cancelScheduledValues(now);
+      this.previewRainGain.gain.linearRampToValueAtTime(rainVolume, now + 0.05);
     }
   }
 
@@ -1284,6 +1308,9 @@ export class ThetaAudioEngine {
   private loopMerger: ChannelMergerNode | null = null;
   private loopScheduledUntil: number = 0; // Track how far ahead we've scheduled
   private loopAnimationFrame: number | null = null;
+  private loopVoiceGain: GainNode | null = null;
+  private loopOceanGain: GainNode | null = null;
+  private loopRainGain: GainNode | null = null;
 
   async playLoopingSession(
     affirmations: Array<{ id: string; userRecording: string }>,
@@ -1331,7 +1358,13 @@ export class ThetaAudioEngine {
     this.loopOscL.start(now);
     this.loopOscR.start(now);
 
-    // 2. DECODE AFFIRMATIONS (once, then reuse buffers)
+    // 2. CREATE MASTER VOICE GAIN (for real-time control)
+    this.loopVoiceGain = this.ctx.createGain();
+    this.loopVoiceGain.gain.value = options.vocalVolume;
+    this.loopVoiceGain.connect(merger, 0, 0);
+    this.loopVoiceGain.connect(merger, 0, 1);
+
+    // DECODE AFFIRMATIONS (once, then reuse buffers)
     this.loopAffBuffers = [];
     for (const aff of affirmations) {
       const affBytes = this.decodeBase64(aff.userRecording);
@@ -1353,13 +1386,13 @@ export class ThetaAudioEngine {
       oceanFilter.type = 'lowpass';
       oceanFilter.frequency.value = 800;
 
-      const oceanGain = this.ctx.createGain();
-      oceanGain.gain.value = options.oceanVolume;
+      this.loopOceanGain = this.ctx.createGain();
+      this.loopOceanGain.gain.value = options.oceanVolume;
 
       this.loopOceanSource.connect(oceanFilter);
-      oceanFilter.connect(oceanGain);
-      oceanGain.connect(merger, 0, 0);
-      oceanGain.connect(merger, 0, 1);
+      oceanFilter.connect(this.loopOceanGain);
+      this.loopOceanGain.connect(merger, 0, 0);
+      this.loopOceanGain.connect(merger, 0, 1);
 
       this.loopOceanSource.start(now);
     }
@@ -1374,13 +1407,13 @@ export class ThetaAudioEngine {
       rainFilter.type = 'lowpass';
       rainFilter.frequency.value = 800;
 
-      const rainGain = this.ctx.createGain();
-      rainGain.gain.value = options.rainVolume;
+      this.loopRainGain = this.ctx.createGain();
+      this.loopRainGain.gain.value = options.rainVolume;
 
       this.loopRainSource.connect(rainFilter);
-      rainFilter.connect(rainGain);
-      rainGain.connect(merger, 0, 0);
-      rainGain.connect(merger, 0, 1);
+      rainFilter.connect(this.loopRainGain);
+      this.loopRainGain.connect(merger, 0, 0);
+      this.loopRainGain.connect(merger, 0, 1);
 
       this.loopRainSource.start(now);
     }
@@ -1414,16 +1447,12 @@ export class ThetaAudioEngine {
 
         for (const item of schedule) {
           const affBuffer = this.loopAffBuffers.find(a => a.id === item.affId);
-          if (affBuffer && this.loopOptions) {
+          if (affBuffer && this.loopVoiceGain) {
             const source = this.ctx.createBufferSource();
             source.buffer = affBuffer.buffer;
 
-            const voiceGain = this.ctx.createGain();
-            voiceGain.gain.value = this.loopOptions.vocalVolume;
-
-            source.connect(voiceGain);
-            voiceGain.connect(this.loopMerger, 0, 0);
-            voiceGain.connect(this.loopMerger, 0, 1);
+            // Connect to master voice gain (for real-time volume control)
+            source.connect(this.loopVoiceGain);
 
             // Schedule relative to where we've already scheduled
             source.start(this.loopScheduledUntil + item.startTime);
@@ -1470,8 +1499,37 @@ export class ThetaAudioEngine {
       this.loopOptions = null;
       this.loopMerger = null;
       this.loopScheduledUntil = 0;
+      this.loopVoiceGain = null;
+      this.loopOceanGain = null;
+      this.loopRainGain = null;
     } catch (e) {
       console.error('Error stopping loop:', e);
+    }
+  }
+
+  updateLoopVolumes(vocalVolume: number, oceanVolume: number, rainVolume: number) {
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+
+    // Update stored options for future scheduling
+    if (this.loopOptions) {
+      this.loopOptions.vocalVolume = vocalVolume;
+      this.loopOptions.oceanVolume = oceanVolume;
+      this.loopOptions.rainVolume = rainVolume;
+    }
+
+    // Update currently playing gain nodes
+    if (this.loopVoiceGain) {
+      this.loopVoiceGain.gain.cancelScheduledValues(now);
+      this.loopVoiceGain.gain.linearRampToValueAtTime(vocalVolume, now + 0.05);
+    }
+    if (this.loopOceanGain) {
+      this.loopOceanGain.gain.cancelScheduledValues(now);
+      this.loopOceanGain.gain.linearRampToValueAtTime(oceanVolume, now + 0.05);
+    }
+    if (this.loopRainGain) {
+      this.loopRainGain.gain.cancelScheduledValues(now);
+      this.loopRainGain.gain.linearRampToValueAtTime(rainVolume, now + 0.05);
     }
   }
 
