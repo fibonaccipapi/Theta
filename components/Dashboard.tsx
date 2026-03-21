@@ -2,6 +2,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { BeliefAnalysis, Affirmation, UserVoiceData, NeuralEnvironment, SynthesisEngine, VocalArchetype, CustomSoundscape, AffirmationLayer, IntensityMode } from '../types';
 import { ThetaAudioEngine } from '../services/audioEngine';
+import HeroCard from './HeroCard';
+import CollapsibleSection from './CollapsibleSection';
 
 interface DashboardProps {
   analysis: BeliefAnalysis;
