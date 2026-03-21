@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AppState, BeliefAnalysis, UserVoiceData, NeuralEnvironment, VocalArchetype, InputMode, Affirmation, CustomSoundscape, SavedSession, AppData, ProcessedAudio } from './types';
+import { AppState, BeliefAnalysis, UserVoiceData, NeuralEnvironment, VocalArchetype, InputMode, Affirmation, CustomSoundscape, SavedSession, AppData, ProcessedAudio, AffirmationLayer, IntensityMode } from './types';
 import OnboardingGuided from './components/OnboardingGuided';
 import OnboardingVoice from './components/OnboardingVoice';
 import OnboardingAdaptive from './components/OnboardingAdaptive';
@@ -14,6 +14,84 @@ import IdentityLockIn from './components/IdentityLockIn';
 import FrequencyMap from './components/FrequencyMap';
 import { AudioEngineDashboard } from './components/AudioEngineDashboard';
 import { analyzeGuidedBeliefs, analyzeVoiceConfession, generateAffirmationAudio } from './services/gemini';
+
+// Helper function to create a minimal empty BeliefAnalysis for Quick Start flow
+const createEmptyAnalysis = (): BeliefAnalysis => ({
+  userIssue: 'Quick Start - Manual Entry Mode',
+  inputMode: InputMode.GUIDED,
+  surfacePattern: 'Starting fresh',
+  emotionalTriggers: [],
+  bodyResponses: [],
+  coreBeliefs: [],
+  defensePattern: 'None identified yet',
+  affirmationTone: 'neutral',
+  oldIdentity: {
+    title: 'Current Self',
+    description: 'Beginning transformation journey',
+    coreBelief: 'I am ready to change',
+    emotionalBaseline: 'Open',
+    behavioralPattern: 'Exploring'
+  },
+  newIdentity: {
+    title: 'Desired Self',
+    description: 'Evolving identity',
+    coreBelief: 'I am becoming who I choose to be',
+    emotionalBaseline: 'Empowered',
+    behavioralPattern: 'Intentional'
+  },
+  currentFrequency: {
+    pattern: 'Getting Started',
+    description: 'Ready to begin your transformation journey',
+    dominant_emotion: 'Curious',
+    dominant_expectation: 'Open to possibilities',
+    dominant_self_talk: 'I am ready to explore',
+    dominant_body_state: 'Present',
+    dominant_behavior_pattern: 'Observing',
+    dominant_relationship_to_receiving: 'Open',
+    dominant_relationship_to_visibility: 'Emerging'
+  },
+  desiredFrequency: {
+    pattern: 'Aligned & Optimized',
+    description: 'Living in alignment with your highest potential',
+    dominant_emotion: 'Empowered',
+    dominant_expectation: 'I create my reality',
+    dominant_self_talk: 'I am the author of my life',
+    dominant_body_state: 'Energized',
+    dominant_behavior_pattern: 'Intentional action',
+    dominant_relationship_to_receiving: 'Open and receptive',
+    dominant_relationship_to_visibility: 'Confident'
+  },
+  frequencyShift: { from: 'Getting Started', to: 'Aligned & Optimized' },
+  affirmations: [],
+  evidenceTasks: [
+    {
+      id: '1',
+      title: 'Record Your First Affirmation',
+      description: 'Capture a positive statement in your own voice',
+      completed: false
+    },
+    {
+      id: '2',
+      title: 'Create a Custom Soundscape',
+      description: 'Design your first neural environment for deep integration',
+      completed: false
+    },
+    {
+      id: '3',
+      title: 'Explore the Audio Engine',
+      description: 'Experiment with binaural frequencies and atmospheric layers',
+      completed: false
+    }
+  ],
+  visualizationPrompt: 'Visualize yourself fully aligned with your highest potential, living with clarity, purpose, and joy. See yourself taking empowered action and creating the life you truly desire.',
+  interruptionCue: 'RESET',
+  recommendedSession: {
+    lengthMinutes: 20,
+    thetaTargetHz: 5,
+    voiceMode: 'user_recording',
+    musicLayer: 'Inner Peace (432Hz)'
+  }
+});
 
 const App: React.FC = () => {
   const [appState, setAppState] = useState<AppState>(AppState.LANDING);
@@ -262,16 +340,16 @@ const App: React.FC = () => {
           />
         ) : null;
 
-      case AppState.DASHBOARD: 
-        return beliefAnalysis ? (
-          <Dashboard 
-            analysis={beliefAnalysis} 
-            voiceLibrary={voiceLibrary} 
+      case AppState.DASHBOARD:
+        return (
+          <Dashboard
+            analysis={beliefAnalysis || createEmptyAnalysis()}
+            voiceLibrary={voiceLibrary}
             customSoundscapes={customSoundscapes}
             selectedEnv={selectedEnv}
             vocalArchetype={vocalArchetype}
-            onEnvChange={(e) => setSelectedEnv(e)} 
-            onStartSession={() => setAppState(AppState.SESSION)} 
+            onEnvChange={(e) => setSelectedEnv(e)}
+            onStartSession={() => setAppState(AppState.SESSION)}
             onRecordVoice={() => { setActiveRecordingAff(null); setAppState(AppState.VOICE_CALIBRATION); }}
             onRecordAffirmation={(aff) => { setActiveRecordingAff(aff); setAppState(AppState.VOICE_CALIBRATION); }}
             onOpenSoundscapeEditor={() => setAppState(AppState.SOUNDSCAPE_EDITOR)}
@@ -288,7 +366,7 @@ const App: React.FC = () => {
             onFrequencyMap={() => setAppState(AppState.FREQUENCY_MAP)}
             activeSessionLabel={activeSession?.label}
           />
-        ) : null;
+        );
 
       case AppState.AUDIO_ENGINE:
         return (
