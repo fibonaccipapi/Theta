@@ -4,6 +4,7 @@ import { BeliefAnalysis, Affirmation, UserVoiceData, NeuralEnvironment, Synthesi
 import { ThetaAudioEngine } from '../services/audioEngine';
 import HeroCard from './HeroCard';
 import CollapsibleSection from './CollapsibleSection';
+import MixStudio from './MixStudio';
 
 interface DashboardProps {
   analysis: BeliefAnalysis;
@@ -45,6 +46,8 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [binauralVolume, setBinauralVolume] = useState(0.35);
   const [oceanVolume, setOceanVolume] = useState(0.4);
   const [rainVolume, setRainVolume] = useState(0.3);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportProgress, setExportProgress] = useState<{ current: number; total: number } | null>(null);
 
   const engine = ThetaAudioEngine.getInstance();
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -187,30 +190,74 @@ const Dashboard: React.FC<DashboardProps> = ({
     }
   };
 
+  const handleExportMix = async (
+    selectedAffirmations: Affirmation[],
+    durationMinutes: number
+  ) => {
+    setIsExporting(true);
+    setExportProgress({ current: 0, total: durationMinutes * 60 });
+
+    try {
+      const blob = await engine.exportMix(
+        selectedAffirmations,
+        { left: customHz, right: rightHz },
+        binauralVolume,
+        durationMinutes,
+        (current, total) => {
+          setExportProgress({ current, total });
+        }
+      );
+
+      // Download the file
+      const timestamp = new Date().toISOString().slice(0, 10);
+      const filename = `theta-hemisync-${timestamp}-${durationMinutes}min.wav`;
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 100);
+
+      setExportProgress(null);
+      setIsExporting(false);
+    } catch (error) {
+      console.error('Export failed:', error);
+      alert('Export failed. Please try again.');
+      setExportProgress(null);
+      setIsExporting(false);
+    }
+  };
+
   const drawScope = () => {
     if (!canvasRef.current || !engine.analyser) return;
     const ctx = canvasRef.current.getContext('2d');
     if (!ctx) return;
-    
+
     const bufferLength = engine.analyser.frequencyBinCount;
     const dataArray = new Uint8Array(bufferLength);
-    
+
     const render = () => {
       if (!isAlchemyLive) return;
       engine.analyser!.getByteTimeDomainData(dataArray);
       ctx.clearRect(0, 0, canvasRef.current!.width, canvasRef.current!.height);
-      
+
       // Create gradient for oscilloscope
       const gradient = ctx.createLinearGradient(0, 0, canvasRef.current!.width, 0);
       gradient.addColorStop(0, '#00FF9F');
       gradient.addColorStop(0.5, '#FF2D9A');
       gradient.addColorStop(1, '#00FF9F');
-      
+
       ctx.lineWidth = 3;
       ctx.strokeStyle = gradient;
       ctx.shadowBlur = 15;
       ctx.shadowColor = 'rgba(0, 255, 159, 0.5)';
-      
+
       ctx.beginPath();
       const sliceWidth = canvasRef.current!.width / bufferLength;
       let x = 0;
@@ -575,6 +622,16 @@ const Dashboard: React.FC<DashboardProps> = ({
                 </div>
               )}
             </div>
+
+            {/* Mix Studio */}
+            <MixStudio
+              affirmations={affirmations}
+              currentBinauralHz={{ left: customHz, right: rightHz }}
+              currentBinauralVolume={binauralVolume}
+              onExport={handleExportMix}
+              isExporting={isExporting}
+              exportProgress={exportProgress}
+            />
           </div>
         </HeroCard>
       </div>
