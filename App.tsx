@@ -128,73 +128,96 @@ const App: React.FC = () => {
         return (
           <div className="flex flex-col items-center justify-center min-h-[80vh] px-6 text-center relative">
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-neon-green/5 rounded-full blur-[100px] pointer-events-none"></div>
-            
-            <div className="relative z-10">
+
+            <div className="relative z-10 max-w-3xl">
               <div className="inline-flex items-center space-x-2 px-4 py-2 rounded-full border border-neon-green/20 bg-neon-green/5 text-[10px] uppercase tracking-[0.3em] text-neon-green font-bold mb-8 animate-pulse">
                 <span>Neural Interface v5.0.1</span>
               </div>
-              
+
               <h1 className="text-6xl md:text-8xl font-display font-bold mb-8 tracking-tighter leading-[0.9] text-white">
-                REPROGRAM <br /> 
+                REPROGRAM <br />
                 <span className="neon-text-pink italic font-serif font-normal">Subconscious.</span>
               </h1>
-              
-              <p className="text-slate-400 max-w-2xl text-lg md:text-xl mb-12 leading-relaxed font-light">
-                Scientific neural entrainment meets tailored vocal mirroring. <br className="hidden md:block" />
-                Pinpoint the limiting beliefs hiding beneath your patterns.
+
+              <p className="text-slate-400 max-w-2xl mx-auto text-lg md:text-xl mb-12 leading-relaxed font-light">
+                Record affirmations in your voice. Layer with hemisync frequencies.
+                Reprogram your subconscious while you sleep.
               </p>
-              
-              <div className="flex flex-col md:flex-row items-center justify-center gap-6">
-                {sessions.length > 0 ? (
-                  <>
-                    <button 
-                      onClick={() => setAppState(AppState.DASHBOARD)} 
+
+              {sessions.length > 0 ? (
+                <>
+                  <div className="flex flex-col md:flex-row items-center justify-center gap-6 mb-12">
+                    <button
+                      onClick={() => setAppState(AppState.DASHBOARD)}
                       className="neon-button-green min-w-[280px]"
                     >
                       RESUME LATEST SESSION
                     </button>
-                    <button 
-                      onClick={() => setAppState(AppState.MODE_SELECTION)} 
+                    <button
+                      onClick={() => setAppState(AppState.MODE_SELECTION)}
                       className="px-10 py-4 rounded-full border border-white/10 text-[11px] uppercase tracking-[0.3em] font-bold hover:bg-white/5 transition-all text-slate-400 min-w-[280px]"
                     >
-                      START NEW ANALYSIS
+                      NEW AI ANALYSIS
                     </button>
-                  </>
-                ) : (
-                  <button 
-                    onClick={() => setAppState(AppState.MODE_SELECTION)} 
+                  </div>
+
+                  {sessions.length > 1 && (
+                    <div className="mt-12 max-w-md mx-auto">
+                      <h4 className="text-[10px] uppercase tracking-[0.4em] text-slate-600 font-black mb-6">Archived Sessions</h4>
+                      <div className="space-y-3">
+                        {sessions.slice(1, 4).map(s => (
+                          <button
+                            key={s.id}
+                            onClick={() => {
+                              setActiveSessionId(s.id);
+                              setAppState(AppState.DASHBOARD);
+                            }}
+                            className="w-full p-4 rounded-2xl border border-white/5 bg-white/[0.02] hover:bg-white/5 transition-all flex items-center justify-between group"
+                          >
+                            <div className="text-left">
+                              <p className="text-white text-xs font-bold group-hover:text-neon-green transition-colors">{s.label}</p>
+                              <p className="text-[9px] text-slate-500 uppercase tracking-widest mt-1">{new Date(s.timestamp).toLocaleDateString()}</p>
+                            </div>
+                            <div className="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center text-slate-500 group-hover:border-neon-green/30 group-hover:text-neon-green transition-all">
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="flex flex-col md:flex-row items-center justify-center gap-6">
+                  <button
+                    onClick={() => setAppState(AppState.DASHBOARD)}
                     className="neon-button-green min-w-[280px]"
                   >
-                    INITIATE NEURAL MAPPING
+                    QUICK START
                   </button>
-                )}
-              </div>
-
-              {sessions.length > 1 && (
-                <div className="mt-12 max-w-md mx-auto">
-                  <h4 className="text-[10px] uppercase tracking-[0.4em] text-slate-600 font-black mb-6">Archived Neural Maps</h4>
-                  <div className="space-y-3">
-                    {sessions.slice(1).map(s => (
-                      <button 
-                        key={s.id}
-                        onClick={() => {
-                          setActiveSessionId(s.id);
-                          setAppState(AppState.DASHBOARD);
-                        }}
-                        className="w-full p-4 rounded-2xl border border-white/5 bg-white/[0.02] hover:bg-white/5 transition-all flex items-center justify-between group"
-                      >
-                        <div className="text-left">
-                          <p className="text-white text-xs font-bold group-hover:text-neon-green transition-colors">{s.label}</p>
-                          <p className="text-[9px] text-slate-500 uppercase tracking-widest mt-1">{new Date(s.timestamp).toLocaleDateString()}</p>
-                        </div>
-                        <div className="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center text-slate-500 group-hover:border-neon-green/30 group-hover:text-neon-green transition-all">
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
+                  <button
+                    onClick={() => setAppState(AppState.MODE_SELECTION)}
+                    className="px-10 py-4 rounded-full border border-white/10 text-[11px] uppercase tracking-[0.3em] font-bold hover:bg-white/5 transition-all text-slate-400 min-w-[280px]"
+                  >
+                    AI ANALYSIS
+                  </button>
                 </div>
               )}
+
+              <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-4 max-w-2xl mx-auto">
+                <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5">
+                  <div className="text-2xl mb-2">🎙️</div>
+                  <p className="text-xs text-slate-400">Record in your voice</p>
+                </div>
+                <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5">
+                  <div className="text-2xl mb-2">🌊</div>
+                  <p className="text-xs text-slate-400">Hemisync frequencies</p>
+                </div>
+                <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5">
+                  <div className="text-2xl mb-2">🧠</div>
+                  <p className="text-xs text-slate-400">Subconscious reprogramming</p>
+                </div>
+              </div>
             </div>
           </div>
         );
