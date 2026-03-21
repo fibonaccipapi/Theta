@@ -268,7 +268,20 @@ const App: React.FC = () => {
               ) : (
                 <div className="flex flex-col md:flex-row items-center justify-center gap-6">
                   <button
-                    onClick={() => setAppState(AppState.DASHBOARD)}
+                    onClick={() => {
+                      if (sessions.length === 0) {
+                        // Create a real session for Quick Start mode
+                        const emptySession: SavedSession = {
+                          id: Date.now().toString(),
+                          timestamp: Date.now(),
+                          analysis: createEmptyAnalysis(),
+                          label: "Quick Start Session"
+                        };
+                        setSessions([emptySession]);
+                        setActiveSessionId(emptySession.id);
+                      }
+                      setAppState(AppState.DASHBOARD);
+                    }}
                     className="neon-button-green min-w-[280px]"
                   >
                     QUICK START
