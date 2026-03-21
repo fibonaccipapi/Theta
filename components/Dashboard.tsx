@@ -599,7 +599,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         <CollapsibleSection title="Alignment Tracker (RAS Amplifier)" defaultOpen={false}>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {analysis.evidenceTasks?.map((task, idx) => (
-              <div key={idx} className="p-6 rounded-3xl bg-white/[0.02] border border-white/5 hover:border-neon-green/30 transition-all group">
+              <div key={task.id} className="p-6 rounded-3xl bg-white/[0.02] border border-white/5 hover:border-neon-green/30 transition-all group">
                 <p className="text-neon-green text-[10px] font-black mb-3">TASK 0{idx + 1}</p>
                 <p className="text-white text-sm font-bold mb-2">{task.title}</p>
                 <p className="text-slate-500 text-xs font-light leading-relaxed">{task.description}</p>
