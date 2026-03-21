@@ -521,6 +521,9 @@ const Dashboard: React.FC<DashboardProps> = ({
                     const val = Number(e.target.value);
                     setCustomHz(val);
                     if(isAlchemyLive) engine.startCustomTrack(val, rightHz, 0.5, binauralVolume);
+                    // Update preview/loop if playing
+                    if(engine.isPreviewPlaying()) engine.updatePreviewBinaural(val, rightHz, binauralVolume);
+                    if(engine.isLoopPlaying()) engine.updateLoopBinaural(val, rightHz, binauralVolume);
                   }}
                   className="w-full h-[2px] bg-white/10 rounded-lg appearance-none cursor-pointer accent-neon-green"
                 />
@@ -537,6 +540,9 @@ const Dashboard: React.FC<DashboardProps> = ({
                     const val = Number(e.target.value);
                     setRightHz(val);
                     if(isAlchemyLive) engine.startCustomTrack(customHz, val, 0.5, binauralVolume);
+                    // Update preview/loop if playing
+                    if(engine.isPreviewPlaying()) engine.updatePreviewBinaural(customHz, val, binauralVolume);
+                    if(engine.isLoopPlaying()) engine.updateLoopBinaural(customHz, val, binauralVolume);
                   }}
                   className="w-full h-[2px] bg-white/10 rounded-lg appearance-none cursor-pointer accent-hot-pink"
                 />
@@ -553,6 +559,9 @@ const Dashboard: React.FC<DashboardProps> = ({
                     const val = Number(e.target.value) / 100;
                     setBinauralVolume(val);
                     if(isAlchemyLive) engine.setBinauralVolume(val);
+                    // Update preview/loop if playing
+                    if(engine.isPreviewPlaying()) engine.updatePreviewBinaural(customHz, rightHz, val);
+                    if(engine.isLoopPlaying()) engine.updateLoopBinaural(customHz, rightHz, val);
                   }}
                   className="w-full h-[2px] bg-white/10 rounded-lg appearance-none cursor-pointer accent-white"
                 />
