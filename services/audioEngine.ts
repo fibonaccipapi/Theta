@@ -650,6 +650,25 @@ export class ThetaAudioEngine {
     affirmations: Array<{ id: string; duration: number }>,
     totalDurationSeconds: number
   ): Array<{ affId: string; startTime: number }> {
+    // Validate inputs
+    if (!affirmations || affirmations.length === 0) {
+      return [];
+    }
+
+    if (totalDurationSeconds <= 0) {
+      console.warn('calculateAffirmationSchedule: Invalid total duration', totalDurationSeconds);
+      return [];
+    }
+
+    // Validate all affirmations have valid data
+    const invalidAff = affirmations.find(aff =>
+      !aff.id || typeof aff.duration !== 'number' || aff.duration <= 0
+    );
+    if (invalidAff) {
+      console.error('Invalid affirmation data:', invalidAff);
+      return [];
+    }
+
     const schedule: Array<{ affId: string; startTime: number }> = [];
     let currentTime = 0;
     let affIndex = 0;
