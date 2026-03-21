@@ -578,6 +578,36 @@ const Dashboard: React.FC<DashboardProps> = ({
           </div>
         </HeroCard>
       </div>
+
+      {/* Collapsible Sections */}
+      <div className="space-y-6">
+        <CollapsibleSection title="Frequency Analysis" defaultOpen={false}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="glass-panel p-8 rounded-[40px] border border-white/5">
+              <h4 className="text-[10px] uppercase tracking-[0.4em] text-slate-500 font-bold mb-6">Current Pattern</h4>
+              <p className="text-white font-display text-2xl font-bold mb-2">{analysis.currentFrequency?.pattern}</p>
+              <p className="text-slate-400 text-xs font-light leading-relaxed">{analysis.currentFrequency?.description}</p>
+            </div>
+            <div className="glass-panel p-8 rounded-[40px] border border-neon-green/20 bg-neon-green/[0.02]">
+              <h4 className="text-[10px] uppercase tracking-[0.4em] text-neon-green font-bold mb-6">Target Frequency</h4>
+              <p className="text-white font-display text-2xl font-bold mb-2">{analysis.desiredFrequency?.pattern}</p>
+              <p className="text-slate-400 text-xs font-light leading-relaxed">{analysis.desiredFrequency?.description}</p>
+            </div>
+          </div>
+        </CollapsibleSection>
+
+        <CollapsibleSection title="Alignment Tracker (RAS Amplifier)" defaultOpen={false}>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {analysis.evidenceTasks?.map((task, idx) => (
+              <div key={idx} className="p-6 rounded-3xl bg-white/[0.02] border border-white/5 hover:border-neon-green/30 transition-all group">
+                <p className="text-neon-green text-[10px] font-black mb-3">TASK 0{idx + 1}</p>
+                <p className="text-white text-sm font-bold mb-2">{task.title}</p>
+                <p className="text-slate-500 text-xs font-light leading-relaxed">{task.description}</p>
+              </div>
+            ))}
+          </div>
+        </CollapsibleSection>
+      </div>
     </div>
   );
 };
