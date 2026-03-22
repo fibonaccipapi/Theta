@@ -1291,6 +1291,28 @@ export class ThetaAudioEngine {
     }
   }
 
+  updatePreviewBinaural(leftHz: number, rightHz: number, binauralVolume: number) {
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+
+    if (this.previewOscL) {
+      this.previewOscL.frequency.cancelScheduledValues(now);
+      this.previewOscL.frequency.exponentialRampToValueAtTime(leftHz, now + 0.05);
+    }
+    if (this.previewOscR) {
+      this.previewOscR.frequency.cancelScheduledValues(now);
+      this.previewOscR.frequency.exponentialRampToValueAtTime(rightHz, now + 0.05);
+    }
+    if (this.previewGainL) {
+      this.previewGainL.gain.cancelScheduledValues(now);
+      this.previewGainL.gain.linearRampToValueAtTime(binauralVolume * 0.5, now + 0.05);
+    }
+    if (this.previewGainR) {
+      this.previewGainR.gain.cancelScheduledValues(now);
+      this.previewGainR.gain.linearRampToValueAtTime(binauralVolume * 0.5, now + 0.05);
+    }
+  }
+
   isPreviewPlaying(): boolean {
     return this.previewOscL !== null;
   }
@@ -1311,6 +1333,7 @@ export class ThetaAudioEngine {
   private loopVoiceGain: GainNode | null = null;
   private loopOceanGain: GainNode | null = null;
   private loopRainGain: GainNode | null = null;
+  private loopVoiceSources: AudioBufferSourceNode[] = []; // Track all scheduled voice sources
 
   async playLoopingSession(
     affirmations: Array<{ id: string; userRecording: string }>,
@@ -1456,6 +1479,9 @@ export class ThetaAudioEngine {
 
             // Schedule relative to where we've already scheduled
             source.start(this.loopScheduledUntil + item.startTime);
+
+            // Track source so we can stop it later
+            this.loopVoiceSources.push(source);
           }
         }
 
@@ -1495,6 +1521,15 @@ export class ThetaAudioEngine {
         cancelAnimationFrame(this.loopAnimationFrame);
         this.loopAnimationFrame = null;
       }
+      // Stop all scheduled voice sources
+      this.loopVoiceSources.forEach(source => {
+        try {
+          source.stop();
+        } catch (e) {
+          // Already stopped or not started yet
+        }
+      });
+      this.loopVoiceSources = [];
       this.loopAffBuffers = [];
       this.loopOptions = null;
       this.loopMerger = null;
@@ -1530,6 +1565,28 @@ export class ThetaAudioEngine {
     if (this.loopRainGain) {
       this.loopRainGain.gain.cancelScheduledValues(now);
       this.loopRainGain.gain.linearRampToValueAtTime(rainVolume, now + 0.05);
+    }
+  }
+
+  updateLoopBinaural(leftHz: number, rightHz: number, binauralVolume: number) {
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+
+    if (this.loopOscL) {
+      this.loopOscL.frequency.cancelScheduledValues(now);
+      this.loopOscL.frequency.exponentialRampToValueAtTime(leftHz, now + 0.05);
+    }
+    if (this.loopOscR) {
+      this.loopOscR.frequency.cancelScheduledValues(now);
+      this.loopOscR.frequency.exponentialRampToValueAtTime(rightHz, now + 0.05);
+    }
+    if (this.loopGainL) {
+      this.loopGainL.gain.cancelScheduledValues(now);
+      this.loopGainL.gain.linearRampToValueAtTime(binauralVolume * 0.5, now + 0.05);
+    }
+    if (this.loopGainR) {
+      this.loopGainR.gain.cancelScheduledValues(now);
+      this.loopGainR.gain.linearRampToValueAtTime(binauralVolume * 0.5, now + 0.05);
     }
   }
 
