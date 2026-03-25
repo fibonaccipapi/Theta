@@ -17,6 +17,7 @@ interface DashboardProps {
   onRecordVoice: () => void;
   onRecordAffirmation: (aff: Affirmation) => void;
   onDeleteVoice: (id: string) => void;
+  onDeleteAffirmation: (id: string) => void;
   onUpdateAnalysis: (analysis: BeliefAnalysis) => void;
   onOpenSoundscapeEditor: () => void;
   onDeleteSoundscape: (id: string) => void;
@@ -27,10 +28,10 @@ interface DashboardProps {
   activeSessionLabel?: string;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ 
+const Dashboard: React.FC<DashboardProps> = ({
   analysis, voiceLibrary, customSoundscapes, selectedEnv, vocalArchetype,
-  onEnvChange, onStartSession, onRecordVoice, onRecordAffirmation, onDeleteVoice, 
-  onUpdateAnalysis, onOpenSoundscapeEditor, onDeleteSoundscape, onStartNewAnalysis,
+  onEnvChange, onStartSession, onRecordVoice, onRecordAffirmation, onDeleteVoice,
+  onDeleteAffirmation, onUpdateAnalysis, onOpenSoundscapeEditor, onDeleteSoundscape, onStartNewAnalysis,
   onIdentityLockIn, onAudioEngine, onFrequencyMap, activeSessionLabel
 }) => {
   const [playingId, setPlayingId] = useState<string | null>(null);
@@ -48,6 +49,13 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [rainVolume, setRainVolume] = useState(0.3);
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState<{ current: number; total: number } | null>(null);
+
+  // Swipe-to-delete state
+  const [swipingId, setSwipingId] = useState<string | null>(null);
+  const [swipeOffset, setSwipeOffset] = useState(0);
+  const [deleteConfirmAff, setDeleteConfirmAff] = useState<Affirmation | null>(null);
+  const swipeStartX = useRef(0);
+  const swipeThreshold = 80;
 
   const engine = ThetaAudioEngine.getInstance();
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -279,6 +287,53 @@ const Dashboard: React.FC<DashboardProps> = ({
     render();
   };
 
+  // Swipe-to-delete handlers
+  const handleSwipeStart = (e: React.TouchEvent | React.MouseEvent, id: string) => {
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    swipeStartX.current = clientX;
+    setSwipingId(id);
+    setSwipeOffset(0);
+  };
+
+  const handleSwipeMove = (e: React.TouchEvent | React.MouseEvent) => {
+    if (!swipingId) return;
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const diff = swipeStartX.current - clientX;
+    // Only allow swiping left (positive diff), cap at threshold
+    setSwipeOffset(Math.max(0, Math.min(diff, swipeThreshold)));
+  };
+
+  const handleSwipeEnd = () => {
+    // If swiped past half threshold, snap to full reveal, otherwise snap back
+    if (swipeOffset > swipeThreshold / 2) {
+      setSwipeOffset(swipeThreshold);
+    } else {
+      setSwipeOffset(0);
+      setSwipingId(null);
+    }
+  };
+
+  const handleDeleteClick = (aff: Affirmation) => {
+    if (aff.userRecording) {
+      // Has recording - show confirmation
+      setDeleteConfirmAff(aff);
+    } else {
+      // No recording - delete immediately
+      onDeleteAffirmation(aff.id);
+      setSwipingId(null);
+      setSwipeOffset(0);
+    }
+  };
+
+  const confirmDelete = () => {
+    if (deleteConfirmAff) {
+      onDeleteAffirmation(deleteConfirmAff.id);
+      setDeleteConfirmAff(null);
+      setSwipingId(null);
+      setSwipeOffset(0);
+    }
+  };
+
   const pairingLevel = affirmations.length > 0 ? Math.round(((voiceLibrary.length > 0 ? 40 : 0) + (affirmations.filter(a => !!a.userRecording).length / affirmations.length) * 60)) : 0;
 
   return (
@@ -364,38 +419,69 @@ const Dashboard: React.FC<DashboardProps> = ({
         >
           <div className="space-y-4">
             {affirmations.slice(0, 5).map((aff) => (
-              <div key={aff.id} className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 group hover:border-hot-pink/30 transition-all">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <span className="text-[8px] uppercase tracking-widest px-2 py-0.5 rounded bg-white/5 text-slate-400 border border-white/10">
-                        {aff.layer}
-                      </span>
-                      <div className={`w-1.5 h-1.5 rounded-full ${aff.userRecording ? 'bg-neon-green shadow-[0_0_8px_rgba(0,255,159,0.8)]' : 'bg-slate-700'}`}></div>
+              <div key={aff.id} className="relative overflow-hidden rounded-2xl">
+                {/* Delete button (revealed on swipe) */}
+                <div
+                  className="absolute right-0 top-0 bottom-0 w-20 bg-red-500/20 flex items-center justify-center"
+                  style={{ opacity: swipingId === aff.id ? swipeOffset / swipeThreshold : 0 }}
+                >
+                  <button
+                    onClick={() => handleDeleteClick(aff)}
+                    className="p-3 rounded-xl bg-red-500/30 text-red-400 hover:bg-red-500/50 transition-all"
+                  >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </div>
+
+                {/* Swipeable card */}
+                <div
+                  className="p-4 bg-white/[0.02] border border-white/5 group hover:border-hot-pink/30 transition-all relative"
+                  style={{
+                    transform: `translateX(-${swipingId === aff.id ? swipeOffset : 0}px)`,
+                    transition: swipingId === aff.id ? 'none' : 'transform 0.2s ease-out'
+                  }}
+                  onTouchStart={(e) => handleSwipeStart(e, aff.id)}
+                  onTouchMove={handleSwipeMove}
+                  onTouchEnd={handleSwipeEnd}
+                  onMouseDown={(e) => handleSwipeStart(e, aff.id)}
+                  onMouseMove={handleSwipeMove}
+                  onMouseUp={handleSwipeEnd}
+                  onMouseLeave={() => { if (swipingId === aff.id) handleSwipeEnd(); }}
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <span className="text-[8px] uppercase tracking-widest px-2 py-0.5 rounded bg-white/5 text-slate-400 border border-white/10">
+                          {aff.layer}
+                        </span>
+                        <div className={`w-1.5 h-1.5 rounded-full ${aff.userRecording ? 'bg-neon-green shadow-[0_0_8px_rgba(0,255,159,0.8)]' : 'bg-slate-700'}`}></div>
+                      </div>
+                      <p className="text-white text-sm font-light italic leading-relaxed">"{aff.text}"</p>
                     </div>
-                    <p className="text-white text-sm font-light italic leading-relaxed">"{aff.text}"</p>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    {aff.userRecording && (
+                    <div className="flex items-center space-x-2">
+                      {aff.userRecording && (
+                        <button
+                          onClick={() => handlePlayVoice(aff.userRecording!, aff.id)}
+                          className={`p-3 rounded-xl transition-all ${playingId === aff.id ? 'bg-hot-pink/20 text-hot-pink' : 'bg-white/5 text-slate-400 hover:text-white'}`}
+                        >
+                          {playingId === aff.id ? (
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                          ) : (
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                          )}
+                        </button>
+                      )}
                       <button
-                        onClick={() => handlePlayVoice(aff.userRecording!, aff.id)}
-                        className={`p-3 rounded-xl transition-all ${playingId === aff.id ? 'bg-hot-pink/20 text-hot-pink' : 'bg-white/5 text-slate-400 hover:text-white'}`}
+                        onClick={() => onRecordAffirmation(aff)}
+                        className={`p-3 rounded-xl transition-all ${aff.userRecording ? 'bg-neon-green/10 text-neon-green border border-neon-green/30' : 'bg-white/5 text-slate-500 hover:text-white'}`}
                       >
-                        {playingId === aff.id ? (
-                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
-                        ) : (
-                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                        )}
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                        </svg>
                       </button>
-                    )}
-                    <button
-                      onClick={() => onRecordAffirmation(aff)}
-                      className={`p-3 rounded-xl transition-all ${aff.userRecording ? 'bg-neon-green/10 text-neon-green border border-neon-green/30' : 'bg-white/5 text-slate-500 hover:text-white'}`}
-                    >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                      </svg>
-                    </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -681,6 +767,35 @@ const Dashboard: React.FC<DashboardProps> = ({
           </div>
         </CollapsibleSection>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmAff && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-deep-black border border-white/10 rounded-3xl p-8 max-w-sm mx-4 shadow-2xl">
+            <h3 className="text-white font-display text-xl font-bold mb-3">Delete Affirmation?</h3>
+            <p className="text-slate-400 text-sm mb-6 leading-relaxed">
+              This will permanently remove your voice recording for this affirmation.
+            </p>
+            <p className="text-white/60 text-xs italic mb-6 border-l-2 border-hot-pink/30 pl-3">
+              "{deleteConfirmAff.text}"
+            </p>
+            <div className="flex space-x-3">
+              <button
+                onClick={() => setDeleteConfirmAff(null)}
+                className="flex-1 py-3 rounded-xl border border-white/10 text-slate-400 text-sm font-bold uppercase tracking-wider hover:bg-white/5 transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="flex-1 py-3 rounded-xl bg-red-500/20 border border-red-500/30 text-red-400 text-sm font-bold uppercase tracking-wider hover:bg-red-500/30 transition-all"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
