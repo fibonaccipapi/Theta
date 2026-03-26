@@ -1,7 +1,18 @@
 import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { BeliefCategory, InputMode, BeliefAnalysis, VocalArchetype, NeuralEnvironment, Affirmation, AffirmationLayer, IntensityMode } from '../types';
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Lazy-initialize to avoid throwing on module load if API key is missing
+let ai: GoogleGenAI | null = null;
+function getAI(): GoogleGenAI {
+  if (!ai) {
+    const apiKey = import.meta.env.VITE_API_KEY || process.env.API_KEY;
+    if (!apiKey) {
+      throw new Error("Gemini API key not configured. Set VITE_API_KEY in environment.");
+    }
+    ai = new GoogleGenAI({ apiKey });
+  }
+  return ai;
+}
 
 const MOCK_ANALYSIS: Partial<BeliefAnalysis> = {
   userIssue: "Sample Issue (API Offline)",
@@ -222,7 +233,7 @@ function cleanJson(text: string): any {
 
 export async function analyzeGuidedBeliefs(category: BeliefCategory, answers: string[]): Promise<BeliefAnalysis> {
   try {
-    const response = await ai.models.generateContent({
+    const response = await getAI().models.generateContent({
       model: 'gemini-3.1-pro-preview',
       contents: `Category: ${category}\nAnswers: ${JSON.stringify(answers)}`,
       config: {
@@ -252,7 +263,7 @@ export async function analyzeGuidedBeliefs(category: BeliefCategory, answers: st
 
 export async function analyzeVoiceConfession(audioBase64: string, mimeType: string): Promise<BeliefAnalysis> {
   try {
-    const response = await ai.models.generateContent({
+    const response = await getAI().models.generateContent({
       model: 'gemini-3.1-pro-preview',
       contents: {
         parts: [
@@ -296,7 +307,7 @@ export async function analyzeAdaptiveBeliefs(issue: string, answers: { question:
   try {
     const isFinal = answers.length >= 3;
     
-    const response = await ai.models.generateContent({
+    const response = await getAI().models.generateContent({
       model: "gemini-3.1-pro-preview",
       contents: `User Issue: ${issue}\n\nHistory:\n${answers.map(a => `Q: ${a.question}\nA: ${a.answer}`).join('\n')}\n\n${isFinal ? 'Return the full BeliefAnalysis JSON.' : 'Return the next diagnostic question as plain text. DO NOT USE JSON.'}`,
       config: {
@@ -352,7 +363,7 @@ export async function generateAffirmationAudio(text: string, voice: VocalArchety
     [VocalArchetype.LUNA]: 'Fenrir'
   };
 
-  const response = await ai.models.generateContent({
+  const response = await getAI().models.generateContent({
     model: "gemini-2.5-flash-preview-tts",
     contents: [{ parts: [{ text: `Speak this affirmation calmly, slowly, and with deep presence: ${text}` }] }],
     config: {
